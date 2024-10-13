@@ -4,7 +4,7 @@ This repository contains the codes for the study 'High-risk human papillomavirus
 Important: Data cannot be shared due to legal constraints associated with the use of the French reference methodology MR-004. 
 
 The `paper.Rmd` contains the `.Rmd` file that *exactly* produced the .pdf file posted on Arxiv (DOI to be updated once accepted).
-The `sources.bib` contains the `.bib` informations used by the `.Rmd` files for citations.
+The `sources.bib` contains the `.bib` informations used by the `.Rmd` files for citations (Nb: not all entries are used).
 
 In the `code` folder you will find the following R code:
 1. `00_package.R`: Import needed packages and define some functions and objects used in subsequent codes;
