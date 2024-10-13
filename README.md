@@ -20,6 +20,6 @@ Any suggestion, comments, error reporting are welcomed! Please, reach out to `os
 
 ## Funders
 
-OS (1st author) is funded by a Ph.D. grant from the ANRS | Maladies infectieuses émergentes (grant number 22485).
-NT (2nd author) is funded by a research grant from the ANRS \textbar{} Maladies infectieuses émergentes (grant number 21290).
-This project was also funded by the ANRS \textbar{} \textit{Maladies infectieuses émergentes} through the research project ANRS-0681-MIST.
+* OS (1st author) is funded by a Ph.D. grant from the ANRS|Maladies infectieuses émergentes (grant number 22485).
+* NT (2nd author) is funded by a research grant from the ANRS|Maladies infectieuses émergentes (grant number 21290).
+* This project was also funded by the ANRS|Maladies infectieuses émergentes through the research project ANRS-0681-MIST.
