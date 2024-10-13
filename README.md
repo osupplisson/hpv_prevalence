@@ -15,3 +15,5 @@ In the `code` folder you will find the following R code:
 6. `05_inlabru.R`: Keeping analytic sample, fit all models, computed LGO-CV log-score, perform PP-check, perform post-fit analyses, select model, fit sensitivity analyses for fitted model;
 7. `99_post_fit_function.R`: Functions used for PP check and post-fit analyses
 
+
+Any suggestion, comments, error reporting are welcomed! Please, reach out to `osupplis@gmail.com`.
