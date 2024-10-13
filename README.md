@@ -1,4 +1,4 @@
-# hpv_prevalence
+# Description
 This repository contains the codes for the study 'High-risk human papillomavirus cervical infection prevalence in France, 2020-2023: a nationwide, large-scale, and spatially-resolved study comparing opportunistic and organised screening'
 
 Important: Data cannot be shared due to legal constraints associated with the use of the French reference methodology MR-004. 
@@ -18,7 +18,7 @@ In the `code` folder you will find the following R code:
 
 Any suggestion, comments, error reporting are welcomed! Please, reach out to `osupplis@gmail.com`.
 
-## Funders
+## Funding
 
 * OS (1st author) is funded by a Ph.D. grant from the ANRS|Maladies infectieuses émergentes (grant number 22485).
 * NT (2nd author) is funded by a research grant from the ANRS|Maladies infectieuses émergentes (grant number 21290).
