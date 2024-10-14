@@ -1,9 +1,9 @@
 # Description
 This repository contains the codes for the study 'High-risk human papillomavirus cervical infection prevalence in France, 2020-2023: a nationwide, large-scale, and spatially-resolved study comparing opportunistic and organised screening'
 
-Important: Data cannot be shared due to legal constraints associated with the use of the French reference methodology MR-004. 
+Important: Data cannot be shared due to legal constraints associated with using the French reference methodology MR-004. 
 
-The `paper.Rmd` contains the `.Rmd` file that *exactly* produced the .pdf file posted on Arxiv (DOI to be updated once accepted).
+The `paper.Rmd` contains the `.Rmd` file that *exactly* produced the manuscript (main text and supplementary files) posted on MedArxiv (DOI to be updated once accepted).
 The `sources.bib` contains the `.bib` informations used by the `.Rmd` files for citations (Nb: not all entries are used).
 
 In the `code` folder you will find the following R code:
