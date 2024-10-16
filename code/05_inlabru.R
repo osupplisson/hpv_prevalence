@@ -668,11 +668,14 @@ input_bru_options <- bru_options(
   safe = T
 )
 
-pass <- F
+pass <- T
 setname <- c("bym2queenfirstorder",
              "bym2delaunay",
              "bym2soi",
              "stationary",
+             "barrier")
+
+setname <- c("stationary",
              "barrier")
 
 if (pass != T) {
@@ -834,7 +837,8 @@ if (str_detect(res$type, "delaunay")) {
 } else if (str_detect(name, "queenfirstorder")) {
   W <- queenfirstorder
 }
-
+gc()
+stop()
 # Sensitivitiy analyses: changing priors for correlation parameters -------
 for (sensi in c("sensi1", "sensi2")) {
   print(name)

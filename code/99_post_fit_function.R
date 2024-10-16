@@ -92,9 +92,12 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
     purrr::discard(is_null)
   
   print("AME")
+  
   # AME for tests---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+  #Keeping only one line by stratum, aggregating the corresponding number of tests
   dfbinomialtmp <- dfbinomial %>%
-    distinct(
+    filter(virus == "hpv1618") %>% 
+    group_by(
       geometry,
       idspace,
       age,
@@ -104,17 +107,20 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
       virusgroup,
       virus,
       insee_dep,
-      region_name,
-      .keep_all = T
+      region_name
     ) %>%
+    summarise(N = sum(N)) %>%
     mutate(id = row_number())
   
+  
   colnames(dfbinomialtmp)
+  
+  #Duplicating the dataframe: one block for organised, one block for opportunistic
   datatmp <- rbind(
     dfbinomialtmp %>%
-      mutate(opportunistic = 0, type = "Organised"),
+      mutate(opportunistic = 0, test = "Organised"),
     dfbinomialtmp %>%
-      mutate(opportunistic = 1, type = "Opportunistic")
+      mutate(opportunistic = 1, test = "Opportunistic")
   ) %>%
     mutate(testgroup = opportunistic + 1, id_join = row_number()) %>%
     mutate(
@@ -127,8 +133,15 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
       intercept = 1
     )
   
+  # Total number of tests ---------------------------------------------------------
+  nall <- datatmp %>% st_drop_geometry() %>% group_by(test) %>% summarise(N = sum(N)) %>% ungroup
+  nyear <- datatmp %>% st_drop_geometry()%>% group_by(test, year) %>% summarise(N = sum(N))  %>% ungroup
+  nage <- datatmp %>% st_drop_geometry()%>% group_by(test, age_class) %>% summarise(N = sum(N)) %>% ungroup
+  nageyear <- datatmp %>% st_drop_geometry()%>% group_by(test, age_class, year) %>% summarise(N = sum(N)) %>% ungroup
+  
   print(Name)
   
+  #Draws from joint
   tmp <- generate(
     object = fit_input,
     newdata = datatmp,
@@ -153,14 +166,17 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
   print(nrow(tmp[[1]]))
   print(colnames(tmp[[1]]))
   
-  
+  #Adding variables to draws
+  #Computing expecting number
   library(tidytable)
   tmp_bis <- tmp %>%
     imap( ~ .x %>%
             mutate(id_join = row_number(), draws = .y)) %>%
     do.call(rbind, .)  %>%
-    left_join(datatmp %>% st_drop_geometry() %>% data.table, by = "id_join")
+    left_join(datatmp %>% st_drop_geometry() %>% data.table, by = "id_join") %>%
+    mutate(ENpos = p * N)
   
+  #Creating df for the ame
   data_for_ame_test <- tmp_bis %>%
     ungroup() %>%
     select(id,
@@ -171,12 +187,15 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
            virus,
            insee_dep,
            region_name,
-           type,
-           p) %>%
-    pivot_wider(names_from = type, values_from = p) %>%
+           test,
+           ENpos) %>%
+    pivot_wider(names_from = test, values_from = ENpos) %>%
     mutate(value = Opportunistic - Organised)
   
   print(colnames(data_for_ame_test))
+  
+  
+  #Expected prevalence for each pathway
   print("Summary")
   data_for_expected_prevalence <- data_for_ame_test %>%
     mutate(test = "Opportunistic", value = Opportunistic) %>%
@@ -184,67 +203,112 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
             mutate(test = "Organised", value = Organised))
   
   print("Prevalence")
+  print("Total")
+  ntest_total <- sum(data_bru$N)
   expected_prevalence <- data_for_expected_prevalence %>%
+    group_by(draws, virus, test) %>%
+    summarise(value = sum(value)) %>%
+    left_join(nall, by = 'test') %>% 
+    mutate(value = value / N) %>%
     group_by(virus, test) %>%
     summary_draw() %>%
     tibble()
   
   print(expected_prevalence)
   
-  
+  print("Year")
   expected_prevalence_year <- data_for_expected_prevalence %>%
+    group_by(draws, virus, test, year) %>%
+    summarise(value = sum(value)) %>%
+    left_join(nyear, by = c('test', 'year')) %>% 
+    mutate(value = value / N) %>%
     group_by(virus, test, year) %>%
     summary_draw() %>%
     tibble()
   print(expected_prevalence_year)
   
+  print("Age")
   expected_prevalence_age <- data_for_expected_prevalence %>%
+    group_by(draws, virus, test, age_class) %>%
+    summarise(value = sum(value)) %>%
+    left_join(nage, by = c('test', 'age_class')) %>% 
+    mutate(value = value / N) %>%
     group_by(virus, test, age_class) %>%
     summary_draw() %>%
     tibble()
   print(expected_prevalence_age)
   
+  
+  print("Year-Age")
   expected_prevalence_year_age <- data_for_expected_prevalence %>%
+    group_by(draws, virus, test, year, age_class) %>%
+    summarise(value = sum(value)) %>%
+    left_join(nageyear, by = c("year", "age_class")) %>%
+    mutate(value = value / N) %>%
     group_by(virus, test, year, age_class) %>%
     summary_draw() %>%
     tibble()
   
   print(expected_prevalence_year_age)
   
-  #AME
+  #AME-Rather marginal expected difference b/w opportunistic and organised
+  nall <- nall %>% filter(test == "Opportunistic") %>% tidytable::select(-test)
+  nyear <- nyear %>% filter(test == "Opportunistic") %>% tidytable::select(-test)
+  nage <- nage %>% filter(test == "Opportunistic") %>% tidytable::select(-test)
+  nageyear <- nageyear %>% filter(test == "Opportunistic") %>% tidytable::select(-test)
+  
+  
   ame_test <- data_for_ame_test %>%
+    group_by(draws, virus) %>%
+    summarise(value = sum(value)/nall$N) %>% 
     group_by(virus) %>%
     summary_draw() %>%
     tibble()
   print(ame_test)
   
   ame_test_year <- data_for_ame_test %>%
+    group_by(draws, virus, year) %>%
+    summarise(value = sum(value)) %>%
+    left_join(nyear, by = c("year")) %>% 
     group_by(virus, year) %>%
+    summarise(value = value/N) %>%
     summary_draw() %>%
     tibble()
   print(ame_test_year)
   
   ame_test_age <- data_for_ame_test  %>%
+    group_by(draws, virus, age_class) %>%
+    summarise(value = sum(value)) %>%
+    left_join(nyear, by = c("age_class")) %>% 
     group_by(virus, age_class) %>%
+    summarise(value = value/N) %>%
     summary_draw() %>%
     tibble()
   print(ame_test_age)
   
   ame_test_age_year <- data_for_ame_test  %>%
+    group_by(draws, virus, age_class, year) %>%
+    summarise(value = sum(value)) %>%
+    left_join(nyear, by = c("year", "age_class")) %>% 
     group_by(virus, age_class, year) %>%
+    summarise(value = value/N) %>%
     summary_draw() %>%
     tibble()
   print(ame_test_age_year)
   
   ame_test_after2020 <- data_for_ame_test %>%
-    filter(year > 2020) %>%
+    filter(year > 2020)  %>%
+    group_by(draws, virus) %>%
+    summarise(value = sum(value)/nall$N) %>% 
     group_by(virus) %>%
     summary_draw() %>%
     tibble()
   print(ame_test_after2020)
   
   ame_test_after2021 <- data_for_ame_test %>%
-    filter(year > 2021) %>%
+    filter(year > 2021)  %>%
+    group_by(draws, virus) %>%
+    summarise(value = sum(value)/nall$N) %>%
     group_by(virus) %>%
     summary_draw() %>%
     tibble()
@@ -344,13 +408,8 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
       group_by(idgeometry, testgroup, age) %>%
       summary_draw() %>%
       tibble()   %>%
-      left_join(
-        df_input %>% 
-          select(
-          one_of(colnames(pixel_pred))
-        ),
-        by = "idgeometry"
-      ) %>%
+      left_join(df_input %>%
+                  select(one_of(colnames(pixel_pred))), by = "idgeometry") %>%
       st_as_sf()
     
     print(difference_virus)
@@ -363,13 +422,8 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
       group_by(idgeometry, virusgroup, age) %>%
       summary_draw() %>%
       tibble()   %>%
-      left_join(
-        df_input %>% 
-          select(
-          one_of(colnames(pixel_pred))
-        ),
-        by = "idgeometry"
-      ) %>%
+      left_join(df_input %>%
+                  select(one_of(colnames(pixel_pred))), by = "idgeometry") %>%
       st_as_sf()
     
     print(difference_test)
