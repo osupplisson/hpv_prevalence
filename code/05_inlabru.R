@@ -675,8 +675,10 @@ setname <- c("bym2queenfirstorder",
              "stationary",
              "barrier")
 
-setname <- c("stationary",
-             "barrier")
+#setname <- c("stationary", "barrier")
+# setname <- c("bym2queenfirstorder",
+#              "bym2delaunay",
+#              "bym2soi")
 
 if (pass != T) {
   for (name in setname) {
@@ -838,7 +840,6 @@ if (str_detect(res$type, "delaunay")) {
   W <- queenfirstorder
 }
 gc()
-stop()
 # Sensitivitiy analyses: changing priors for correlation parameters -------
 for (sensi in c("sensi1", "sensi2")) {
   print(name)
