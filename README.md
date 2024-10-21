@@ -1,5 +1,5 @@
 # Description
-This repository contains the codes for the study 'High-risk human papillomavirus cervical infection prevalence in France, 2020-2023: a nationwide, large-scale, and spatially-resolved study comparing opportunistic and organised screening'
+This repository contains the codes for the study 'High-risk human papillomavirus cervical infection prevalence in France, 2020-2023: a nationwide, large-scale, and spatially resolved retrospective study comparing opportunistic and organised screening'
 
 Important: Data cannot be shared due to legal constraints associated with using the French reference methodology MR-004. 
 
