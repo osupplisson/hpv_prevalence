@@ -26,7 +26,7 @@ Any suggestions, comments, or error reporting are welcomed! Please, reach out to
 
 ## Acknowledgements
 
-We are grateful to the genotoul bioinformatics platform Toulouse Occitanie (Bioinfo Genotoul, https://doi.org/10.15454/1.5572369328961167E12) for providing help and computing and storage resources".
+We are grateful to the genotoul bioinformatics platform Toulouse Occitanie (Bioinfo Genotoul, https://doi.org/10.15454/1.5572369328961167E12) for providing help and computing and storage resources.
 
 The authors acknowledge the  ISO 9001 certified IRD i-Trop HPC (South Green Platform) at IRD montpellier for providing HPC resources that have contributed to the research results reported within this paper. https://bioinfo.ird.fr/-http://www.southgreen.fr
 
