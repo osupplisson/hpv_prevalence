@@ -3,7 +3,7 @@ This repository contains the codes for the study 'High-risk human papillomavirus
 
 Important: Data cannot be shared due to legal constraints associated with using the French reference methodology MR-004. 
 
-The `paper.Rmd` contains the `.Rmd` file that *exactly* produced the manuscript (main text and supplementary files) posted on MedRxiv (DOI to be updated once accepted).
+The `paper.Rmd` contains the `.Rmd` file that produced the manuscript (main text and supplementary files) posted on MedRxiv (DOI to be updated once accepted). Note that slight changes may appear between the preprint and the .RMD version due to post-submission typo fixing.
 The `sources.bib` contains the `.bib` informations used by the `.Rmd` files for citations (Nb: not all entries are used).
 
 In the `code` folder you will find the following R code:
@@ -31,3 +31,5 @@ We are grateful to the genotoul bioinformatics platform Toulouse Occitanie (Bioi
 The authors acknowledge the  ISO 9001 certified IRD i-Trop HPC (South Green Platform) at IRD montpellier for providing HPC resources that have contributed to the research results reported within this paper. https://bioinfo.ird.fr/-http://www.southgreen.fr
 
 We acknowledge Bioclust, the computing cluster of PB-IBENS (LABEX MEMOLIFE members) for providing storage resources. https://www.ibens.bio.ens.psl.eu/spip.php?rubrique55#bioclust
+
+
