@@ -1,9 +1,12 @@
-# Description
-This repository contains the codes for the study 'High-risk human papillomavirus cervical infection prevalence in France, 2020-2023: a nationwide, large-scale, and spatially resolved retrospective study comparing opportunistic and organised screening'. A preliminary version of this work is available on MedRxiv (https://www.medrxiv.org/content/10.1101/2024.10.20.24315479v1, doi: https://doi.org/10.1101/2024.10.20.24315479). 
+# General description
+This repository contains the codes for the study 'High-risk human papillomavirus cervical infection prevalence in France, 2020-2023: a nationwide, large-scale, and spatially resolved retrospective study comparing opportunistic and organised screening'. 
 
-This work was submitted on the 21/10/2024 to Eurosurveillance.
+# History
 
-Important: Data cannot be shared due to legal constraints associated with using the French reference methodology MR-004. 
+* 21/10/2024: first public version posted on MedRxiv (https://www.medrxiv.org/content/10.1101/2024.10.20.24315479v1, doi: https://doi.org/10.1101/2024.10.20.24315479).
+* 21/10/2024: submitted to Eurosurveillance
+
+# Description of codes
 
 The `sources.bib` contains the `.bib` informations used by the `.Rmd` files for citations (Nb: not all entries are used).
 
@@ -26,6 +29,11 @@ Note: The code `paper.Rmd` will be posted once the manuscript is accepted for pu
 * OS (1st author) is funded by a Ph.D. grant from the ANRS|Maladies infectieuses émergentes (grant number 22485).
 * NT (2nd author) is funded by a research grant from the ANRS|Maladies infectieuses émergentes (grant number 21290).
 * This project was also funded by the ANRS|Maladies infectieuses émergentes through the research project ANRS-0681-MIST.
+
+## Data sharing
+
+Important: Data cannot be shared due to legal constraints associated with using the French reference methodology MR-004. 
+
 
 ## Acknowledgements
 
