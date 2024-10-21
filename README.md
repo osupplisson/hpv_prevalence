@@ -16,10 +16,18 @@ In the `code` folder you will find the following R code:
 7. `99_post_fit_function.R`: Functions used for PP check and post-fit analyses
 
 
-Any suggestion, comments, error reporting are welcomed! Please, reach out to `osupplis@gmail.com`.
+Any suggestions, comments, or error reporting are welcomed! Please, reach out to `osupplis@gmail.com`.
 
 ## Funding
 
 * OS (1st author) is funded by a Ph.D. grant from the ANRS|Maladies infectieuses émergentes (grant number 22485).
 * NT (2nd author) is funded by a research grant from the ANRS|Maladies infectieuses émergentes (grant number 21290).
 * This project was also funded by the ANRS|Maladies infectieuses émergentes through the research project ANRS-0681-MIST.
+
+## Acknowledgements
+
+We are grateful to the genotoul bioinformatics platform Toulouse Occitanie (Bioinfo Genotoul, https://doi.org/10.15454/1.5572369328961167E12) for providing help and computing and storage resources".
+
+The authors acknowledge the  ISO 9001 certified IRD i-Trop HPC (South Green Platform) at IRD montpellier for providing HPC resources that have contributed to the research results reported within this paper. https://bioinfo.ird.fr/-http://www.southgreen.fr
+
+We acknowledge Bioclust, the computing cluster of PB-IBENS (LABEX MEMOLIFE members) for providing storage resources. https://www.ibens.bio.ens.psl.eu/spip.php?rubrique55#bioclust
