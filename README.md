@@ -5,6 +5,15 @@ This repository contains the codes for the study 'High-risk human papillomavirus
 
 * 21/10/2024: first public version posted on MedRxiv (https://www.medrxiv.org/content/10.1101/2024.10.20.24315479v1, doi: https://doi.org/10.1101/2024.10.20.24315479).
 * 21/10/2024: submitted to Eurosurveillance
+* 29/10/2024: reviewers invited
+
+
+## Typo correction
+
+Several typos were identified after the document was released on medrxiv. The next medrxiv update will be released following the first peer review round. In the meantime, a typo-corrected version can be found on my personal Google drive, following this url: https://drive.google.com/drive/folders/1on-osm5h_M3CVgz2mXA0YuDsN1kFgKJC?usp=drive_link
+
+An updated version will be posted every time a new typos is identified. 
+
 
 # Description of codes
 
@@ -42,5 +51,4 @@ We are grateful to the genotoul bioinformatics platform Toulouse Occitanie (Bioi
 The authors acknowledge the  ISO 9001 certified IRD i-Trop HPC (South Green Platform) at IRD montpellier for providing HPC resources that have contributed to the research results reported within this paper. https://bioinfo.ird.fr/-http://www.southgreen.fr
 
 We acknowledge Bioclust, the computing cluster of PB-IBENS (LABEX MEMOLIFE members) for providing storage resources. https://www.ibens.bio.ens.psl.eu/spip.php?rubrique55#bioclust
-
 
