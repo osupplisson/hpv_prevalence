@@ -12,7 +12,7 @@ This repository contains the codes for the study 'High-risk human papillomavirus
 
 Several typos were identified after the document was released on medrxiv. The next medrxiv update will be released following the first peer review round. In the meantime, a typo-corrected version can be found on my personal Google drive, following this url: https://drive.google.com/drive/folders/1on-osm5h_M3CVgz2mXA0YuDsN1kFgKJC?usp=drive_link
 
-An updated version will be posted every time a new typos is identified. 
+An updated version will be posted every time a new typos is identified and corrected. 
 
 
 # Description of codes
