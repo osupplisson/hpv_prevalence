@@ -7,7 +7,7 @@ This repository contains the codes for the study 'High-risk human papillomavirus
 * 21/10/2024: submitted to Eurosurveillance
 * 29/10/2024: reviewers invited
 * 08/11/2024: under review
-* 19/11/2025: major update of the manuscript with one additional neighbourhood matrix considered (2nd order Queen) and assignment of a hierarchical prior for the additional intercepts. Results remain the same.
+* 19/11/2025: major update of the updated version of manuscript (Google drive link below) with one additional neighbourhood matrix considered (2nd order Queen) and assignment of a hierarchical prior for the additional intercepts. Results remain the same.
 
 
 ## Typo correction
