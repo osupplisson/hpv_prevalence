@@ -498,6 +498,11 @@ queensecondorder <- nblag_cumul(queensecondorder)
 # Saving ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 save.image("hpv/clean_data/aggregated_data.rda")
 
+
+mask_fr_built <- data_cp_final %>% 
+  summarise()
+dif <- st_difference(fr_mask,mask_fr_built)
+
 #ggplot() + gg(st_transform(st_as_sf(carto_region), "lambert_globe"))
 # 
 # 

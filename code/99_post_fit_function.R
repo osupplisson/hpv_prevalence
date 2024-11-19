@@ -1,5 +1,3 @@
-# kmprojglobe <- fm_CRS("lambert_globe")
-# projglobe <- fm_CRS("longlat_globe")
 # Function ----------------------------------------------------------------
 # PP ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 pp_check_function <- function(fit_input, Nsample) {
@@ -16,20 +14,7 @@ pp_check_function <- function(fit_input, Nsample) {
     newdata = dfbinomial,
     n.samples = Nsample,
     seed = 123,
-    formula = ~ tibble(
-      p = plogis(
-        Intercept +
-          intercepthpvother +
-          interceptopportunistic +
-          intercepthpvotheropportunistic +
-          fspace +
-          fspaceopportunistic +
-          fage +
-          fageopportunistic +
-          ftime +
-          ftimeopportunistic
-      )
-    )
+    formula = fml
   )
   
   
@@ -84,6 +69,11 @@ pp_check_function <- function(fit_input, Nsample) {
 }
 
 exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
+  
+  summary.fixed <- fit_input$summary.fixed
+  summary.random <- fit_input$summary.random
+  summary.hyperpar <- fit_input$summary.hyperpar
+  
   # Hyperparameters ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   correlation <- fit_input$marginals.hyperpar %>%
     imap(function(.x, .y) {
@@ -136,17 +126,17 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
   #We want to have the number of tests performed stratified by dimension
   #Becaus eah test yield a result for HPV16/19 and other genotypes, the number of tests is duplicated
   #Filtering in only HPV1618
-  nall <- dfbinomial %>% 
+  nall <- dfbinomial %>%
     st_drop_geometry() %>%
-    filter(virus == "hpv1618") %>%   
+    filter(virus == "hpv1618") %>%
     summarise(N = sum(N)) %>%
     ungroup
   
-  nyear <- dfbinomial %>% 
-    st_drop_geometry() %>% 
-    filter(virus == "hpv1618") %>% 
-    group_by(year) %>% 
-    summarise(N = sum(N))  %>% 
+  nyear <- dfbinomial %>%
+    st_drop_geometry() %>%
+    filter(virus == "hpv1618") %>%
+    group_by(year) %>%
+    summarise(N = sum(N))  %>%
     ungroup
   
   nage <- dfbinomial %>%
@@ -183,20 +173,7 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
     newdata = datatmp,
     n.samples = Name,
     seed = 123,
-    formula = ~ tibble(
-      p = plogis(
-        Intercept +
-          intercepthpvother +
-          interceptopportunistic +
-          intercepthpvotheropportunistic +
-          fspace +
-          fspaceopportunistic +
-          fage +
-          fageopportunistic +
-          ftime +
-          ftimeopportunistic
-      )
-    )
+    formula = fml
   )
   #  saveRDS(tmp, "hpv/clean_data/test.RDS")
   print(nrow(tmp[[1]]))
@@ -400,27 +377,15 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
       model = fit_input$bru_info$model,
       state = state,
       data = datatmp,
-      predictor =  ~ tibble(
-        value = plogis(
-          Intercept +
-            intercepthpvother +
-            interceptopportunistic +
-            intercepthpvotheropportunistic +
-            fspace +
-            fspaceopportunistic +
-            fage +
-            fageopportunistic +
-            ftime +
-            ftimeopportunistic
-        )
-      )
+      predictor =  fml
     )
     
     
     library(tidytable)
     tmp_new <- tmp %>%
       imap(~ data.table(.x) %>%
-             mutate(id = row_number(), draws = .y)) %>%
+             mutate(id = row_number(), draws = .y) %>% 
+             rename(value = p)) %>%
       do.call(rbind, .) %>%
       left_join(datatmp %>% st_drop_geometry() %>% data.table(), by = "id")
     
@@ -520,7 +485,7 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
       hpv1618 = ifelse(virusgroup == 1, 1, 0),
       hpvother = 1 - hpv1618,
       id = row_number()
-    )
+    ) 
   
   #Generate predictions
   effect_main_cities <- generate(
@@ -529,20 +494,7 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
     n.samples = Nsample,
     probs = vector_quantiles,
     seed = 123,
-    formula = ~ tibble(
-      p = plogis(
-        Intercept +
-          intercepthpvother +
-          interceptopportunistic +
-          intercepthpvotheropportunistic +
-          fspace +
-          fspaceopportunistic +
-          fage +
-          fageopportunistic +
-          ftime +
-          ftimeopportunistic
-      )
-    )
+    formula = fml
   )
   
   
@@ -693,8 +645,9 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
     "baseline_space_66" = baseline_space_66,
     "baseline_space_paris_66" = baseline_space_paris_66,
     "correlation" = correlation,
-    "summary.fixed" = fit_input$summary.fixed,
-    "summary.hyperpar" = fit_input$summary.hyperpar
+    "summary.fixed" = summary.fixed,
+    "summary.random" = summary.random,
+    "summary.hyperpar" = summary.hyperpar
   )
   
   

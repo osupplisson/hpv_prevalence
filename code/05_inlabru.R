@@ -14,6 +14,8 @@ soi <- as(nb2mat(soi, style = 'B', zero.policy = TRUE), 'Matrix')
 delaunay <- as(nb2mat(delaunay, style = 'B', zero.policy = TRUE), 'Matrix')
 queenfirstorder <- as(nb2mat(queenfirstorder, style = 'B', zero.policy = TRUE),
                       'Matrix')
+queensecondorder <- as(nb2mat(queensecondorder, style = 'B', zero.policy = TRUE),
+                       'Matrix')
 
 
 
@@ -150,6 +152,14 @@ dfbinomial <- data_bru %>%
     hpvother = ifelse(virus == "hpvother", 1, 0),
     virusgroup = hpvother + 1,
     intercept = 1
+  ) %>%
+  mutate(
+    intercept_level = case_when(
+      virusgroup == 0 & opportunistic == 0 ~ 1,
+      virusgroup == 1 & opportunistic == 0 ~ 2,
+      virusgroup == 0 & opportunistic == 1 ~ 3,
+      virusgroup == 1 & opportunistic == 1 ~ 4
+    )
   )
 
 # Save --------------------------------------------------------------------
@@ -189,38 +199,6 @@ function_bru_elements <- function(prec_fixed,
     )
   }
   
-  
-  # Mesh for age ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  mesh1Dage <- fm_mesh_1d(seq(min(dfbinomial$age) - 5, max(dfbinomial$age) + 5, by = 1),
-                          boundary = "free",
-                          degree = 2)
-  print("Prior range for age:")
-  rangeage <- 0.5 * diff(range(c(
-    min(dfbinomial$age), max(dfbinomial$age)
-  )))
-  print(rangeage)
-  spdeage <- inla.spde2.pcmatern(
-    mesh1Dage,
-    prior.sigma = c(sd_pc_input, 0.01),
-    prior.range = c(rangeage, 0.99),
-    constr = FALSE
-  )
-  
-  # Mesh for time ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  mesh1Dtime <-
-    fm_mesh_1d(seq(1 - 5, max(dfdate$idtime) + 5, by = 1),
-               boundary = "free",
-               degree = 2)
-  rangetime <- round(diff(range(dfdate$idtime)) / 2)
-  print("Prior range for time:")
-  print(rangetime)
-  spdetime <- inla.spde2.pcmatern(
-    mesh1Dtime,
-    prior.sigma = c(sd_pc_input, 0.01),
-    prior.range = c(rangetime, 0.99),
-    constr = FALSE
-  )
-  
   # https://stats.stackexchange.com/questions/454647/relation-between-gaussian-processes-and-gaussian-markov-random-fields
   fx <- function(x, n) {
     (exp(x) - 1) / (exp(x) + n - 1)
@@ -249,27 +227,26 @@ function_bru_elements <- function(prec_fixed,
   
   # Components ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   # Baseline component ------------------------------------------------------
-  cmp <- ~ 0 + Intercept(
-    intercept,
-    model = "linear",
-    mean.linear = 0,
-    prec.linear = prec_fixed
-  ) + intercepthpvother(
-    (virusgroup - 1),
-    model = "linear",
-    mean.linear = 0,
-    prec.linear = 1
-  ) + interceptopportunistic(
-    opportunistic ,
-    model = "linear",
-    mean.linear = 0,
-    prec.linear = 1
-  ) + intercepthpvotheropportunistic(
-    opportunistic * (virusgroup - 1),
-    model = "linear",
-    mean.linear = 0,
-    prec.linear = 1
-  )
+  cmp <- ~ 0 +
+    intercept(
+      intercept,
+      model = "linear",
+      mean.linear = 0,
+      prec.linear = prec_fixed
+    ) +
+    intercepthpvother(virusgroup, model = "factor_contrast", hyper = list(prec = list(
+      prior = 'pc.prec', param = c(u = 1, a = 0.5)
+    ))) +
+    interceptopportunistic(opportunistic,
+                           model = "factor_contrast",
+                           hyper = list(prec = list(
+                             prior = 'pc.prec', param = c(u = 1, a = 0.5)
+                           ))) +
+    intercepthpvotheropportunistic(opportunistic * (virusgroup - 1),
+                                   model = "factor_contrast",
+                                   hyper = list(prec = list(
+                                     prior = 'pc.prec', param = c(u = 1, a = 0.5)
+                                   )))
   
   
   # Age ---------------------------------------------------------------------
@@ -305,55 +282,18 @@ function_bru_elements <- function(prec_fixed,
     )
   )
   
-  #Not used: strange values for the posterior range, likely confounding ?
-  #   fage(
-  #   age,
-  #   model = spdeage,
-  #   group = virusgroup,
-  #   ngroup = 2,
-  #   control.group = list(model = "exchangeable", hyper = list(rho = list(
-  #     prior = "normal", param = c(0, prec_corr)
-  #   )))
-  # ) + fageopportunistic(
-  #   age,
-  #   weights = opportunistic,
-  #   model = spdeage,
-  #   group = virusgroup,
-  #   ngroup = 2,
-  #   control.group = list(model = "exchangeable", hyper = list(rho = list(
-  #     prior = "normal", param = c(0, prec_corr)
-  #   )))
-  # )
-  # ftime(
-  #   idtime,
-  #   model = spdetime,
-  #   group = virusgroup,
-  #   ngroup = 2,
-  #   control.group = list(model = "exchangeable", hyper = list(rho = list(
-  #     prior = "normal", param = c(0, prec_corr)
-  #   )))
-  # ) + ftimeopportunistic(
-  #   idtime,
-  #   weights = opportunistic,
-  #   model = spdetime,
-  #   group = virusgroup,
-  #   ngroup = 2,
-  #   control.group = list(model = "exchangeable", hyper = list(rho = list(
-  #     prior = "normal", param = c(0, prec_corr)
-  #   )))
-  # )
-  
   
   
   # Space and time ----------------------------------------------------------
   if (str_detect(typespace, "spacetime")) {
-    #NB: spacetime models are not working, the latent field is just to large, INLA shut down during init with 1000GO RAM
+    #Does not work, INLA fails
     cmp <- update(
       cmp,
       ~ . +
-        fspacetime1(
+        fspacetime(
           idspace,
           group = idtime,
+          replicate = virusgroup,
           model = "bym2",
           graph = W,
           scale.model = TRUE,
@@ -367,13 +307,14 @@ function_bru_elements <- function(prec_fixed,
             phi = list(prior = 'pc', param =  c(u = 0.5, a = 0.5))
           ),
           control.group = list(model = "ar1", hyper = list(rho = list(
-            prior = "pc.cor0", param = c(0.5, 0.5)
+            prior = 'pc.cor0', param = c(0.5, 0.5)
           )))
         ) +
-        fspacetimeopportunistic1(
+        fspacetimeopportunistic(
           idspace,
           weights = opportunistic,
           group = idtime,
+          replicate = virusgroup,
           model = "bym2",
           graph = W,
           scale.model = TRUE,
@@ -387,47 +328,7 @@ function_bru_elements <- function(prec_fixed,
             phi = list(prior = 'pc', param =  c(u = 0.5, a = 0.5))
           ),
           control.group = list(model = "ar1", hyper = list(rho = list(
-            prior = "pc.cor0", param = c(0.5, 0.5)
-          )))
-        ) +
-        fspacetime2(
-          idspace,
-          weights = (virusgroup - 1),
-          group = idtime,
-          model = "bym2",
-          graph = W,
-          scale.model = TRUE,
-          adjust.for.con.comp = TRUE,
-          constr = TRUE,
-          hyper = list(
-            prec = list(
-              prior = 'pc.prec',
-              param = c(u = sd_pc_input, a = 0.01)
-            ),
-            phi = list(prior = 'pc', param =  c(u = 0.5, a = 0.5))
-          ),
-          control.group = list(model = "ar1", hyper = list(rho = list(
-            prior = "pc.cor0", param = c(0.5, 0.5)
-          )))
-        ) +
-        fspacetimeopportunistic2(
-          idspace,
-          weights = opportunistic * (virusgroup - 1),
-          group = idtime,
-          model = "bym2",
-          graph = W,
-          scale.model = TRUE,
-          adjust.for.con.comp = TRUE,
-          constr = TRUE,
-          hyper = list(
-            prec = list(
-              prior = 'pc.prec',
-              param = c(u = sd_pc_input, a = 0.01)
-            ),
-            phi = list(prior = 'pc', param =  c(u = 0.5, a = 0.5))
-          ),
-          control.group = list(model = "ar1", hyper = list(rho = list(
-            prior = "pc.cor0", param = c(0.5, 0.5)
+            prior = 'pc.cor0', param = c(0.5, 0.5)
           )))
         )
     )
@@ -435,7 +336,7 @@ function_bru_elements <- function(prec_fixed,
   else{
     ###Space
     if (str_detect(typespace, "bym2")) {
-      #GMRF component, model 3 to 5
+      #GMRF component, model 3 to 6
       cmp <- update(
         cmp,
         ~ . +
@@ -543,8 +444,6 @@ function_bru_elements <- function(prec_fixed,
       )
     )
   }
-  
-  
   
   
   
@@ -768,16 +667,19 @@ input_bru_options <- bru_options(
     restart = 4
   ),
   num.threads = "30:1",
-  safe = F
+  safe = T
 )
 
 pass <- T
 
-setname <- c("bym2queenfirstorder",
-             "bym2delaunay",
-             "bym2soi",
-             "stationary",
-             "barrier")
+setname <- c(
+  "bym2queenfirstorder",
+  "bym2delaunay",
+  "bym2queensecondorder",
+  "bym2soi",
+  "stationary",
+  "barrier"
+)
 
 
 if (pass != T) {
@@ -826,18 +728,34 @@ if (pass != T) {
     }
     gc()
     # GCPO ----------------------------------------------------------------------
-    if (!file.exists(pathgcpo)) {
-      print("GCPO")
-      gcpo <- inla.group.cv(
-        fit,
-        group.cv = NULL,
-        num.level.sets = 32,
-        size.max = 32,
-        strategy = "posterior"
+    # if (!file.exists(pathgcpo)) {
+    #   print("GCPO")
+    #   gcpo <- inla.group.cv(
+    #     fit,
+    #     group.cv = NULL,
+    #     num.level.sets = 32,
+    #     size.max = 32,
+    #     strategy = "posterior"
+    #   )
+    #   saveRDS(gcpo, file = pathgcpo)
+    #   rm("gcpo")
+    # }
+    #
+    
+    fml <- ~ tibble(
+      p = plogis(
+        intercept +
+          intercepthpvother +
+          interceptopportunistic +
+          intercepthpvotheropportunistic +
+          fspace +
+          fspaceopportunistic +
+          fage +
+          fageopportunistic +
+          ftime +
+          ftimeopportunistic
       )
-      saveRDS(gcpo, file = pathgcpo)
-      rm("gcpo")
-    }
+    )
     
     # Postfit -----------------------------------------------------------------
     if (!file.exists(pathpostfit)) {
@@ -862,6 +780,7 @@ if (pass != T) {
     }
     gc()
     rm("fit")
+    rm("fml")
   }
   gc()
 }
@@ -872,6 +791,7 @@ if (!file.exists("hpv/clean_data/output/gcpo.RDS")) {
   delaunay <- readRDS("hpv/clean_data/output/gcpo_bym2delaunay.RDS")
   soi <- readRDS("hpv/clean_data/output/gcpo_bym2soi.RDS")
   queen1 <- readRDS("hpv/clean_data/output/gcpo_bym2queenfirstorder.RDS")
+  queen2 <- readRDS("hpv/clean_data/output/gcpo_bym2queensecondorder.RDS")
   
   res <- tibble(
     model = "gcpo_barrier.RDS",
@@ -913,6 +833,15 @@ if (!file.exists("hpv/clean_data/output/gcpo.RDS")) {
         type = "queenfirstorder",
         n = "Model 5"
       )
+    ) %>%
+    add_row(
+      tibble(
+        model = "gcpo_bym2queensecondtorder.RDS",
+        ls = c(-mean(log(queen2$cv))),
+        space = "bym2",
+        type = "queensecondorder",
+        n = "Model 6"
+      )
     )
   saveRDS(res, "hpv/clean_data/output/gcpo.RDS")
 } else{
@@ -938,9 +867,27 @@ if (str_detect(res$type, "delaunay")) {
   W <- soi
 } else if (str_detect(name, "queenfirstorder")) {
   W <- queenfirstorder
+} else if (str_detect(name, "queensecondorder")) {
+  W <- queensecondorder
 }
-gc()
 
+
+fml <- ~ tibble(
+  p = plogis(
+    intercept +
+      intercepthpvother +
+      interceptopportunistic +
+      intercepthpvotheropportunistic +
+      fspace +
+      fspaceopportunistic +
+      fage +
+      fageopportunistic +
+      ftime +
+      ftimeopportunistic
+  )
+)
+
+gc()
 
 # Sensitivitiy analyses: changing priors for correlation parameters -------
 for (sensi in c("sensi1", "sensi2")) {
