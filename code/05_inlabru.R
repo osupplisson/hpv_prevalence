@@ -670,7 +670,7 @@ input_bru_options <- bru_options(
   safe = T
 )
 
-pass <- T
+pass <- F
 
 setname <- c(
   "bym2queenfirstorder",
@@ -758,26 +758,26 @@ if (pass != T) {
     )
     
     # Postfit -----------------------------------------------------------------
-    if (!file.exists(pathpostfit)) {
-      print("Postfit")
-      post_fit <- exporting_results_model(
-        fit_input = fit,
-        Nsample = 1000,
-        Name = 1000,
-        namemodel = name
-      )
-      saveRDS(post_fit, file = pathpostfit)
-      rm("post_fit")
-    }
-    gc()
+    # if (!file.exists(pathpostfit)) {
+    #   print("Postfit")
+    #   post_fit <- exporting_results_model(
+    #     fit_input = fit,
+    #     Nsample = 1500,
+    #     Name = 1500,
+    #     namemodel = name
+    #   )
+    #   saveRDS(post_fit, file = pathpostfit)
+    #   rm("post_fit")
+    # }
+    # gc()
     
     # PP ----------------------------------------------------------------------
-    if (!file.exists(pathpp)) {
-      print("PP")
-      pp <- pp_check_function(fit_input = fit, Nsample = 1000)
-      saveRDS(pp, file = pathpp)
-      rm("pp")
-    }
+      if (!file.exists(pathpp)) {
+        print("PP")
+        pp <- pp_check_function(fit_input = fit, Nsample = 2000)
+        saveRDS(pp, file = pathpp)
+        rm("pp")
+      }
     gc()
     rm("fit")
     rm("fml")
@@ -939,8 +939,8 @@ for (sensi in c("sensi1", "sensi2")) {
     print("Postfit")
     post_fit <- exporting_results_model(
       fit_input = fit,
-      Nsample = 1000,
-      Name = 1000,
+      Nsample = 1500,
+      Name = 1500,
       namemodel = res$space
     )
     saveRDS(post_fit, file = pathpostfit)
