@@ -17,7 +17,8 @@ Several typos were identified after the document was released on MedRxiv. The ne
 
 ## Major updates
 
-* 19/11/2025: Additional neighbourhood matrix (2nd order Queen) considered. Replacement of the single-level prior of each of the three additional intercepts by a hierarchical prior (PC-prior). Results remain the same. 
+* 19/11/2025: Additional neighbourhood matrix (2nd order Queen) considered. Replacement of the single-level prior of each of the three additional intercepts by a hierarchical prior (PC-prior). Results remain the same.
+* 27/11/2025: Fixing an issues with the reported ETI95 (there were defined as $[q_{a},q_{1-a}]$ instead of $[q_{a/2},q_{1-a/2}]$). Adding more draws from the joint posterior to compute the quantities (2,000 for PP and 1,200 for other quantities).
 
 
 # Description of codes
