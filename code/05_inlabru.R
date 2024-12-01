@@ -758,18 +758,18 @@ if (pass != T) {
     )
     
     # Postfit -----------------------------------------------------------------
-    # if (!file.exists(pathpostfit)) {
-    #   print("Postfit")
-    #   post_fit <- exporting_results_model(
-    #     fit_input = fit,
-    #     Nsample = 1500,
-    #     Name = 1500,
-    #     namemodel = name
-    #   )
-    #   saveRDS(post_fit, file = pathpostfit)
-    #   rm("post_fit")
-    # }
-    # gc()
+    if (!file.exists(pathpostfit)) {
+      print("Postfit")
+      post_fit <- exporting_results_model(
+        fit_input = fit,
+        Nsample = 1500,
+        Name = 1500,
+        namemodel = name
+      )
+      saveRDS(post_fit, file = pathpostfit)
+      rm("post_fit")
+    }
+    gc()
     
     # PP ----------------------------------------------------------------------
       if (!file.exists(pathpp)) {
