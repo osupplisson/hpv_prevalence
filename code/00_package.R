@@ -19,7 +19,7 @@ library(fmesher)
 library(ggthemes)
 library(INLA)
 library(inlabru)
-
+library(rSPDE)
 
 sd_to_prec <- function(sigma) {
   tibble("sd" = sigma,

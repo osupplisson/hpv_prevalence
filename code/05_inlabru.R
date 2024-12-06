@@ -197,6 +197,9 @@ function_bru_elements <- function(prec_fixed,
       prior.range = c(range_space, 0.99),
       constr = F
     )
+  } else if (str_detect(typespace, "anisotropicrspde")) {
+    #Very long and difficult to fit, not possible given our computing capabilities
+    spdespace <- rSPDE::rspde.anistropic2d(mesh = mesh_input)
   }
   
   # https://stats.stackexchange.com/questions/454647/relation-between-gaussian-processes-and-gaussian-markov-random-fields
@@ -664,7 +667,7 @@ input_bru_options <- bru_options(
     diff.logdens = 0.1,
     numint.maxfeval = 800000000,
     stupid.search = TRUE,
-    restart = 4
+    restart = 10
   ),
   num.threads = "30:1",
   safe = T
@@ -680,6 +683,7 @@ setname <- c(
   "stationary",
   "barrier"
 )
+
 
 
 if (pass != T) {
@@ -728,19 +732,18 @@ if (pass != T) {
     }
     gc()
     # GCPO ----------------------------------------------------------------------
-    # if (!file.exists(pathgcpo)) {
-    #   print("GCPO")
-    #   gcpo <- inla.group.cv(
-    #     fit,
-    #     group.cv = NULL,
-    #     num.level.sets = 32,
-    #     size.max = 32,
-    #     strategy = "posterior"
-    #   )
-    #   saveRDS(gcpo, file = pathgcpo)
-    #   rm("gcpo")
-    # }
-    #
+    if (!file.exists(pathgcpo)) {
+      print("GCPO")
+      gcpo <- inla.group.cv(
+        fit,
+        group.cv = NULL,
+        num.level.sets = 32,
+        size.max = 32,
+        strategy = "posterior"
+      )
+      saveRDS(gcpo, file = pathgcpo)
+      rm("gcpo")
+    }
     
     fml <- ~ tibble(
       p = plogis(
@@ -756,7 +759,7 @@ if (pass != T) {
           ftimeopportunistic
       )
     )
-    
+
     # Postfit -----------------------------------------------------------------
     if (!file.exists(pathpostfit)) {
       print("Postfit")
@@ -772,12 +775,12 @@ if (pass != T) {
     gc()
     
     # PP ----------------------------------------------------------------------
-      if (!file.exists(pathpp)) {
-        print("PP")
-        pp <- pp_check_function(fit_input = fit, Nsample = 2000)
-        saveRDS(pp, file = pathpp)
-        rm("pp")
-      }
+    if (!file.exists(pathpp)) {
+      print("PP")
+      pp <- pp_check_function(fit_input = fit, Nsample = 2000)
+      saveRDS(pp, file = pathpp)
+      rm("pp")
+    }
     gc()
     rm("fit")
     rm("fml")
