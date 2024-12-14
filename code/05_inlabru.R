@@ -685,7 +685,6 @@ setname <- c(
 )
 
 
-
 if (pass != T) {
   for (name in setname) {
     pathfit <- paste0("hpv/clean_data/fit/fit_", name, ".RDS")

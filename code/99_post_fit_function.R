@@ -435,14 +435,14 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
     return(out)
   }
   print(namemodel)
-  # if (str_detect(namemodel, "bym2")) {
-  #   spatial_domain <- idcentroidspred
-  # }
-  # else{
-  #   spatial_domain <- pixel_pred
-  # }
-  spatial_domain <- idcentroidspred %>% 
-    st_centroid()
+  if (str_detect(namemodel, "bym2")) {
+    spatial_domain <- idcentroidspred
+  }
+  else{
+    spatial_domain <- idcentroidspred %>% 
+      st_centroid()
+  }
+
   
   print(colnames(spatial_domain))
   
