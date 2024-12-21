@@ -662,7 +662,7 @@ input_bru_options <- bru_options(
     optimise.strategy = "smart",
     fast = TRUE,
     compute.initial.values = T,
-    stencil = 9,
+    stencil = 9L,
     dz = 0.1,
     diff.logdens = 0.1,
     numint.maxfeval = 800000000,

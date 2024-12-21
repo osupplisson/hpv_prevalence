@@ -22,9 +22,9 @@ pp_check_function <- function(fit_input, Nsample) {
   library(tidytable)
   
   df <- draw_pp  %>%
-    imap( ~ .x  %>%
-            data.table() %>%
-            mutate(id = row_number(), draws = .y)) %>%
+    imap(~ .x  %>%
+           data.table() %>%
+           mutate(id = row_number(), draws = .y)) %>%
     do.call(rbind, .)  %>%
     left_join(data.table(dfbinomial), by = "id") %>%
     rowwise() %>%
@@ -69,7 +69,6 @@ pp_check_function <- function(fit_input, Nsample) {
 }
 
 exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
-  
   summary.fixed <- fit_input$summary.fixed
   summary.random <- fit_input$summary.random
   summary.hyperpar <- fit_input$summary.hyperpar
@@ -184,8 +183,8 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
   #Computing expecting number
   library(tidytable)
   tmp_bis <- tmp %>%
-    imap( ~ .x %>%
-            mutate(id_join = row_number(), draws = .y)) %>%
+    imap(~ .x %>%
+           mutate(id_join = row_number(), draws = .y)) %>%
     do.call(rbind, .)  %>%
     left_join(datatmp %>% st_drop_geometry() %>% data.table, by = "id_join") %>%
     mutate(ENpos = p * N)
@@ -383,9 +382,9 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
     
     library(tidytable)
     tmp_new <- tmp %>%
-      imap(~ data.table(.x) %>%
-             mutate(id = row_number(), draws = .y) %>% 
-             rename(value = p)) %>%
+      imap( ~ data.table(.x) %>%
+              mutate(id = row_number(), draws = .y) %>%
+              rename(value = p)) %>%
       do.call(rbind, .) %>%
       left_join(datatmp %>% st_drop_geometry() %>% data.table(), by = "id")
     
@@ -439,10 +438,10 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
     spatial_domain <- idcentroidspred
   }
   else{
-    spatial_domain <- idcentroidspred %>% 
+    spatial_domain <- idcentroidspred %>%
       st_centroid()
   }
-
+  
   
   print(colnames(spatial_domain))
   
@@ -454,7 +453,7 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
   )
   gc()
   baseline_space_paris_30 <- baseline_space_30 %>%
-    imap( ~ .x %>% filter(insee_reg == 11))
+    imap(~ .x %>% filter(insee_reg == 11))
   gc()
   
   baseline_space_66 <-   generate_risk_level(
@@ -464,7 +463,7 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
   )
   gc()
   baseline_space_paris_66 <- baseline_space_66 %>%
-    imap( ~ .x %>% filter(insee_reg == 11))
+    imap(~ .x %>% filter(insee_reg == 11))
   gc()
   
   
@@ -487,7 +486,7 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
       hpv1618 = ifelse(virusgroup == 1, 1, 0),
       hpvother = 1 - hpv1618,
       id = row_number()
-    ) 
+    )
   
   #Generate predictions
   effect_main_cities <- generate(
@@ -503,8 +502,8 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
   library(tidytable)
   
   effect_main_cities <- effect_main_cities %>%
-    imap(~ data.table(.x) %>%
-           mutate(id = row_number(), draws = .y)) %>%
+    imap( ~ data.table(.x) %>%
+            mutate(id = row_number(), draws = .y)) %>%
     do.call(rbind, .) %>%
     left_join(data.table(datatmp %>% st_drop_geometry()), by = "id")
   
@@ -685,15 +684,21 @@ summary_draw <- function(df) {
       qi_ub_05 = quantile(value, probs = 0.5, na.rm = T),
       min = min(value, na.rm = T),
       max = max(value, na.rm = T),
+      N = max(row_number()),
       N_higher_0 = sum(value > 0, na.rm = T),
+      N_higher_05 = sum(value > 0.5, na.rm = T),
       N_higher_1 = sum(value > 1, na.rm = T),
-      higher_0 = mean(value > 0, na.rm = T),
-      higher_05 = mean(value > 0.5, na.rm = T),
-      higher_1 = mean(value > 1, na.rm = T),
-      lower_0 = mean(value < 0, na.rm = T),
-      lower_05 = mean(value < 0.5, na.rm = T),
-      lower_1 = mean(value < 1, na.rm = T),
-      higher_2 = mean(value > 2, na.rm = T)
+      N_lower_0 = sum(value < 0, na.rm = T),
+      N_lower_05 = sum(value < 0.5, na.rm = T),
+      N_lower_1 = sum(value < 1, na.rm = T)
     ) %>%
-    ungroup()
+    ungroup() %>%
+    mutate(
+      higher_0 = N_higher_0 / N,
+      higher_05 = N_higher_05 / N,
+      higher_1 = N_higher_1 / N,
+      lower_0 = N_lower_0 / N,
+      lower_05 = N_lower_05 / N,
+      lower_1 = N_lower_1 / N
+    )
 }
