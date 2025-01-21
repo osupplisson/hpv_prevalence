@@ -9,6 +9,7 @@ This repository contains the codes for the study 'High-risk human papillomavirus
 * 21/10/2024: submitted to Eurosurveillance
 * 29/10/2024: reviewers invited
 * 08/11/2024: under review
+* 14/01/2025: reviews received, revised version due to 07/02/2025
 
 
 ## Typo correction
