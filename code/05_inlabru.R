@@ -18,6 +18,19 @@ queensecondorder <- as(nb2mat(queensecondorder, style = 'B', zero.policy = TRUE)
                        'Matrix')
 
 
+function_to_assign_W <- function(name) {
+  if (str_detect(name, "delaunay")) {
+    delaunay
+  } else if (str_detect(name, "soi")) {
+    soi
+  } else if (str_detect(name, "queenfirstorder")) {
+    queenfirstorder
+  } else if (str_detect(name, "queensecondorder")) {
+    queensecondorder
+  } else{
+    NULL
+  }
+}
 
 # plot(st_geometry(fr_mask), border="grey")
 # plot(delaunay_w, st_coordinates(st_centroid(idcentroids_unique$geometry)), add=TRUE)
@@ -28,8 +41,8 @@ queensecondorder <- as(nb2mat(queensecondorder, style = 'B', zero.policy = TRUE)
 sd_to_prec <- function(sigma) {
   tibble(
     "sd" = sigma,
-    "var" = sigma ^ 2,
-    "prec" = 1 / sigma ^ 2,
+    "var" = sigma^2,
+    "prec" = 1 / sigma^2,
     "0025quantile" = qnorm(0.025, 0, sigma),
     "0975quantile" = qnorm(0.975, 0, sigma)
   )
@@ -64,6 +77,20 @@ dfidage <-
 # https://onlinelibrary.wiley.com/doi/epdf/10.1002/ece3.4789
 # https://github.com/inlabru-org/inlabru/issues/57
 # https://rpubs.com/jafet089/880416
+bb <- matrix(st_bbox(fr_mask), 2)
+
+dbb <- apply(bb, 1, diff)
+dbb
+
+map.size <- mean(dbb)
+
+map <- st_buffer(x = st_union(x = st_simplify(
+  x = fr_mask,
+  preserveTopology = T,
+  dTolerance = map.size * 0.001
+)), dist = map.size * 0.01)
+
+
 if (!file.exists("hpv/clean_data/output/mesh.RDS")) {
   locx1 <- data_bru %>%
     st_centroid %>%
@@ -77,20 +104,20 @@ if (!file.exists("hpv/clean_data/output/mesh.RDS")) {
     distinct(code_postal, .keep_all = T)
   
   mesh_input <- fmesher::fm_mesh_2d_inla(
-    boundary = france.bdry,
-    max.edge = c(5, 10),
+    boundary = map,
+    max.edge = c(5, 30),
     cutoff = 5,
-    offset = c(5, 10),
+    offset = c(5, 30),
     loc = locx$geometry,
     crs = fmesher::fm_crs(kmproj),
-    min.angle = 28
+    min.angle = 30
   )
   print(mesh_input$n)
   saveRDS(mesh_input, "hpv/clean_data/output/mesh.RDS")
 } else{
   mesh_input <- readRDS("hpv/clean_data/output/mesh.RDS")
 }
-range_space <- round(0.5 * diff(range(mesh_input$loc[, 2])))
+range_space <- round(0.5 * map.size)
 print(range_space)
 print(mesh_input$n)
 
@@ -101,21 +128,19 @@ print(mesh_input$n)
 # https://becarioprecario.bitbucket.io/spde-gitbook/ch-nonstationarity.html#ch:barrier
 
 #ggplot() + gg(coastlines)
-#fr_mask
-water.tri <- inla.over_sp_mesh(land, y = mesh_input, type = "centroid")
+water.tri <- unlist(fmesher::fm_contains(x = fr_mask, y = mesh_input, type = "centroid"))
 num.tri <- length(mesh_input$graph$tv[, 1])
 barrier.tri <- setdiff(1:num.tri, water.tri)
 poly.barrier <- inla.barrier.polygon(mesh_input, barrier.triangles = barrier.tri)
 poly.barrier <- as(poly.barrier, "sf") %>% st_set_crs(kmproj)
 
-
-# Mesh --------------------------------------------------------------------
-plot_mesh.barrier <- ggplot() +
-  gg(mesh_input, fill = "black")
-
+# Plot mesh --------------------------------------------------------------------
 if (!file.exists("hpv/clean_data/output/post_mesh.RDS")) {
   plot_mesh.barrier <- ggplot() +
-    gg(coastlines, fill = "grey", alpha = 0.25) +
+    gg(fr_mask) +
+    gg(land %>% st_crop(st_bbox(fr_mask)),
+       fill = "grey",
+       alpha = 0.25) +
     gg(mesh_input, fill = "black") +
     gg(poly.barrier, fill = "red", alpha = 0.25) +
     gg(
@@ -123,12 +148,8 @@ if (!file.exists("hpv/clean_data/output/post_mesh.RDS")) {
       col = 'darkgreen',
       alpha = 0.25
     ) +
-    labs(fill = element_blank(), caption = "Blue lines indicate France borders. \n Red shaded area indicates Oceans and Seas, acting as natural barrier.") +
-    theme_map() +
-    lims(
-      x = layer_scales(plot_mesh.barrier)$x$range$range,
-      y = layer_scales(plot_mesh.barrier)$y$range$range
-    )
+    labs(fill = element_blank(), caption = "Red shaded area indicates the barrier accounted for by the Barrier model.") +
+    theme_map()
   
   saveRDS(plot_mesh.barrier, file = "hpv/clean_data/output/post_mesh.RDS")
 }
@@ -197,9 +218,6 @@ function_bru_elements <- function(prec_fixed,
       prior.range = c(range_space, 0.99),
       constr = F
     )
-  } else if (str_detect(typespace, "anisotropicrspde")) {
-    #Very long and difficult to fit, not possible given our computing capabilities
-    spdespace <- rSPDE::rspde.anistropic2d(mesh = mesh_input)
   }
   
   # https://stats.stackexchange.com/questions/454647/relation-between-gaussian-processes-and-gaussian-markov-random-fields
@@ -231,32 +249,37 @@ function_bru_elements <- function(prec_fixed,
   # Components ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   # Baseline component ------------------------------------------------------
   cmp <- ~ 0 +
-    intercept(
-      intercept,
+    interceptglobal(
+      main = intercept,
       model = "linear",
       mean.linear = 0,
       prec.linear = prec_fixed
     ) +
-    intercepthpvother(virusgroup, model = "factor_contrast", hyper = list(prec = list(
-      prior = 'pc.prec', param = c(u = 1, a = 0.5)
-    ))) +
-    interceptopportunistic(opportunistic,
+    intercepthpvother(main = virusgroup,
+                      model = "factor_contrast",
+                      hyper = list(prec = list(
+                        prior = 'pc.prec', param = c(u = 1, a = 0.5)
+                      ))) +
+    interceptopportunistic(main = opportunistic,
                            model = "factor_contrast",
                            hyper = list(prec = list(
                              prior = 'pc.prec', param = c(u = 1, a = 0.5)
                            ))) +
-    intercepthpvotheropportunistic(opportunistic * (virusgroup - 1),
-                                   model = "factor_contrast",
-                                   hyper = list(prec = list(
-                                     prior = 'pc.prec', param = c(u = 1, a = 0.5)
-                                   )))
+    intercepthpvotheropportunistic(
+      main = opportunistic * (virusgroup - 1),
+      model = "factor_contrast",
+      hyper = list(prec = list(
+        prior = 'pc.prec', param = c(u = 1, a = 0.5)
+      ))
+    )
   
   
   # Age ---------------------------------------------------------------------
   cmp <- update(
     cmp,
     ~ . + fage(
-      (age - 29),
+      main = (age - 29),
+      values = (seq(30, 66) - 29),
       group = virusgroup,
       model = "rw2",
       ngroup = 2,
@@ -269,9 +292,10 @@ function_bru_elements <- function(prec_fixed,
         prior = "normal", param = c(0, prec_corr)
       )))
     ) + fageopportunistic(
-      (age - 29),
-      group = virusgroup,
+      main = (age - 29),
       weights = opportunistic,
+      values = (seq(30, 66) - 29),
+      group = virusgroup,
       model = "rw2",
       ngroup = 2,
       scale.model = TRUE,
@@ -287,16 +311,16 @@ function_bru_elements <- function(prec_fixed,
   
   
   
-  # Space and time ----------------------------------------------------------
-  if (str_detect(typespace, "spacetime")) {
-    #Does not work, INLA fails
+  # Space component ---------------------------------------------------------
+  if (str_detect(typespace, "bym2")) {
+    #GMRF component, model 3 to 6
     cmp <- update(
       cmp,
       ~ . +
-        fspacetime(
-          idspace,
-          group = idtime,
-          replicate = virusgroup,
+        fspace(
+          main = idspace,
+          group = virusgroup,
+          ngroup = 2,
           model = "bym2",
           graph = W,
           scale.model = TRUE,
@@ -309,15 +333,15 @@ function_bru_elements <- function(prec_fixed,
             ),
             phi = list(prior = 'pc', param =  c(u = 0.5, a = 0.5))
           ),
-          control.group = list(model = "ar1", hyper = list(rho = list(
-            prior = 'pc.cor0', param = c(0.5, 0.5)
+          control.group = list(model = "exchangeable", hyper = list(rho = list(
+            prior = "normal", param = c(0, prec_corr)
           )))
         ) +
-        fspacetimeopportunistic(
-          idspace,
+        fspaceopportunistic(
+          main = idspace,
           weights = opportunistic,
-          group = idtime,
-          replicate = virusgroup,
+          group = virusgroup,
+          ngroup = 2,
           model = "bym2",
           graph = W,
           scale.model = TRUE,
@@ -330,125 +354,74 @@ function_bru_elements <- function(prec_fixed,
             ),
             phi = list(prior = 'pc', param =  c(u = 0.5, a = 0.5))
           ),
-          control.group = list(model = "ar1", hyper = list(rho = list(
-            prior = 'pc.cor0', param = c(0.5, 0.5)
+          control.group = list(model = "exchangeable", hyper = list(rho = list(
+            prior = "normal", param = c(0, prec_corr)
           )))
         )
     )
   }
   else{
-    ###Space
-    if (str_detect(typespace, "bym2")) {
-      #GMRF component, model 3 to 6
-      cmp <- update(
-        cmp,
-        ~ . +
-          fspace(
-            idspace,
-            group = virusgroup,
-            ngroup = 2,
-            model = "bym2",
-            graph = W,
-            scale.model = TRUE,
-            adjust.for.con.comp = TRUE,
-            constr = TRUE,
-            hyper = list(
-              prec = list(
-                prior = 'pc.prec',
-                param = c(u = sd_pc_input, a = 0.01)
-              ),
-              phi = list(prior = 'pc', param =  c(u = 0.5, a = 0.5))
-            ),
-            control.group = list(model = "exchangeable", hyper = list(rho = list(
-              prior = "normal", param = c(0, prec_corr)
-            )))
-          ) +
-          fspaceopportunistic(
-            idspace,
-            weights = opportunistic,
-            group = virusgroup,
-            ngroup = 2,
-            model = "bym2",
-            graph = W,
-            scale.model = TRUE,
-            adjust.for.con.comp = TRUE,
-            constr = TRUE,
-            hyper = list(
-              prec = list(
-                prior = 'pc.prec',
-                param = c(u = sd_pc_input, a = 0.01)
-              ),
-              phi = list(prior = 'pc', param =  c(u = 0.5, a = 0.5))
-            ),
-            control.group = list(model = "exchangeable", hyper = list(rho = list(
-              prior = "normal", param = c(0, prec_corr)
-            )))
-          )
-      )
-    }
-    else{
-      #GRF component, model 1 and 2
-      cmp <- update(
-        cmp,
-        ~ . +
-          fspace(
-            geometry,
-            model = spdespace,
-            group = virusgroup,
-            ngroup = 2,
-            control.group = list(model = "exchangeable", hyper = list(rho = list(
-              prior = "normal", param = c(0, prec_corr)
-            )))
-          ) +
-          fspaceopportunistic(
-            geometry,
-            weights = opportunistic,
-            model = spdespace,
-            group = virusgroup,
-            ngroup = 2,
-            control.group = list(model = "exchangeable", hyper = list(rho = list(
-              prior = "normal", param = c(0, prec_corr)
-            )))
-          )
-      )
-    }
-    ##Time
+    #GRF component, model 1 and 2
     cmp <- update(
       cmp,
-      ~ . + ftime(
-        idtime,
-        group = virusgroup,
-        model = "rw2",
-        ngroup = 2,
-        scale.model = TRUE,
-        constr = TRUE,
-        hyper = list(prec = list(
-          prior = 'pc.prec',
-          param = c(u = sd_pc_input, a = 0.01)
-        )),
-        control.group = list(model = "exchangeable", hyper = list(rho = list(
-          prior = "normal", param = c(0, prec_corr)
-        )))
-      ) + ftimeopportunistic(
-        idtime,
-        group = virusgroup,
-        weights = opportunistic,
-        model = "rw2",
-        ngroup = 2,
-        scale.model = TRUE,
-        constr = TRUE,
-        hyper = list(prec = list(
-          prior = 'pc.prec',
-          param = c(u = sd_pc_input, a = 0.01)
-        )),
-        control.group = list(model = "exchangeable", hyper = list(rho = list(
-          prior = "normal", param = c(0, prec_corr)
-        )))
-      )
+      ~ . +
+        fspace(
+          main = geometry,
+          model = spdespace,
+          group = virusgroup,
+          ngroup = 2,
+          control.group = list(model = "exchangeable", hyper = list(rho = list(
+            prior = "normal", param = c(0, prec_corr)
+          )))
+        ) +
+        fspaceopportunistic(
+          main = geometry,
+          weights = opportunistic,
+          model = spdespace,
+          group = virusgroup,
+          ngroup = 2,
+          control.group = list(model = "exchangeable", hyper = list(rho = list(
+            prior = "normal", param = c(0, prec_corr)
+          )))
+        )
     )
   }
   
   
+  ##Adding time components
+  cmp <- update(
+    cmp,
+    ~ . + ftime(
+      main = idtime,
+      values = dfdate$idtime,
+      group = virusgroup,
+      model = "rw2",
+      ngroup = 2,
+      scale.model = TRUE,
+      constr = TRUE,
+      hyper = list(prec = list(
+        prior = 'pc.prec', param = c(u = sd_pc_input, a = 0.01)
+      )),
+      control.group = list(model = "exchangeable", hyper = list(rho = list(
+        prior = "normal", param = c(0, prec_corr)
+      )))
+    ) + ftimeopportunistic(
+      main = idtime,
+      opportunistic,
+      values = dfdate$idtime,
+      group = virusgroup,
+      model = "rw2",
+      ngroup = 2,
+      scale.model = TRUE,
+      constr = TRUE,
+      hyper = list(prec = list(
+        prior = 'pc.prec', param = c(u = sd_pc_input, a = 0.01)
+      )),
+      control.group = list(model = "exchangeable", hyper = list(rho = list(
+        prior = "normal", param = c(0, prec_corr)
+      )))
+    )
+  )
   
   # Formula -----------------------------------------------------------------
   fml <- result ~ .
@@ -648,7 +621,6 @@ centroid_major_city <- centroid_major_city %>%
 print(colnames(centroid_major_city))
 print(colnames(idcentroidspred))
 print(colnames(pixel_pred))
-# Two first models ---------------------------------------------------------
 
 # BRU options -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 input_bru_options <- bru_options(
@@ -667,14 +639,24 @@ input_bru_options <- bru_options(
     diff.logdens = 0.1,
     numint.maxfeval = 800000000,
     stupid.search = TRUE,
-    restart = 10
+    restart = 5
   ),
   num.threads = "30:1",
   safe = T
 )
 
-pass <- F
 
+function_to_import_model_if_dont_exist <- function(pathinput) {
+  if (!exists("fit")) {
+    print("Importing model")
+    readRDS(pathinput)
+  } else{
+    print("Model already available")
+    fit
+  }
+}
+
+# Name of models ----------------------------------------------------------
 setname <- c(
   "bym2queenfirstorder",
   "bym2delaunay",
@@ -684,109 +666,118 @@ setname <- c(
   "barrier"
 )
 
+setname <- c(
+  "bym2queenfirstorder"
+)
 
-if (pass != T) {
-  for (name in setname) {
-    pathfit <- paste0("hpv/clean_data/fit/fit_", name, ".RDS")
-    pathpostfit <- paste0("hpv/clean_data/output/post_fit_", name, ".RDS")
-    pathpp <- paste0("hpv/clean_data/output/pp_", name, ".RDS")
-    pathgcpo  <- paste0("hpv/clean_data/output/gcpo_", name, ".RDS")
-    print(pathfit)
-    print(pathpostfit)
-    print(pathpp)
-    print(pathgcpo)
-    
-    if (str_detect(name, "delaunay")) {
-      W <- delaunay
-    } else if (str_detect(name, "soi")) {
-      W <- soi
-    } else if (str_detect(name, "queenfirstorder")) {
-      W <- queenfirstorder
-    } else if (str_detect(name, "queensecondorder")) {
-      W <- queensecondorder
-    }
-    # Fit ---------------------------------------------------------------------
-    if (!file.exists(pathfit)) {
-      x <- function_bru_elements(
-        prec_fixed = 1 / 100,
-        sd_pc_input = 10,
-        prec_corr = 0.2,
-        range.fraction.input = 0.1,
-        typespace = name
+
+# Running models ---------------------------------------------------
+for (name in setname) {
+  pathfit <- paste0("hpv/clean_data/fit/fit_", name, ".RDS")
+  print(pathfit)
+  
+  W <- function_to_assign_W(name)
+  
+  if (!file.exists(pathfit)) {
+    if (name %in% c("bym2queenfirstorder", "stationary")) {
+      print("Running without starting values")
+      input_bru_options[["control.mode"]] <- NULL
+    } else{
+      print("Running with starting values")
+      if (name == "barrier") {
+        fit <- function_to_import_model_if_dont_exist(paste0("hpv/clean_data/fit/fit_stationary.RDS"))
+      } else{
+        fit <- function_to_import_model_if_dont_exist(paste0("hpv/clean_data/fit/fit_bym2queenfirstorder.RDS"))
+      }
+      input_bru_options[["control.mode"]] <- list(
+        theta = fit$mode$theta,
+        x = fit$mode$x,
+        restart = TRUE
       )
-      print(x$cmp)
-      #Fit
-      fit <- bru(components = x$cmp, x$lik1, options = input_bru_options)
-      #Saving
-      saveRDS(fit, pathfit)
-      print(summary(fit))
+      
+      rm("fit")
+      gc()
     }
-    rm("fit")
-    gc()
-    if (!file.exists(pathpostfit) |
-        !file.exists(pathpp) |
-        !file.exists(pathgcpo)) {
-      fit <- readRDS(pathfit)
-      print(summary(fit))
-    }
-    gc()
-    # GCPO ----------------------------------------------------------------------
-    if (!file.exists(pathgcpo)) {
-      print("GCPO")
-      gcpo <- inla.group.cv(
-        fit,
-        group.cv = NULL,
-        num.level.sets = 32,
-        size.max = 32,
-        strategy = "posterior"
-      )
-      saveRDS(gcpo, file = pathgcpo)
-      rm("gcpo")
-    }
-    
-    fml <- ~ tibble(
-      p = plogis(
-        intercept +
-          intercepthpvother +
-          interceptopportunistic +
-          intercepthpvotheropportunistic +
-          fspace +
-          fspaceopportunistic +
-          fage +
-          fageopportunistic +
-          ftime +
-          ftimeopportunistic
-      )
+    print("Set model")
+    x <- function_bru_elements(
+      prec_fixed = 1 / 100,
+      sd_pc_input = 10,
+      prec_corr = 0.2,
+      range.fraction.input = 0.1,
+      typespace = name
     )
-
-    # Postfit -----------------------------------------------------------------
-    if (!file.exists(pathpostfit)) {
-      print("Postfit")
-      post_fit <- exporting_results_model(
-        fit_input = fit,
-        Nsample = 1500,
-        Name = 1500,
-        namemodel = name
-      )
-      saveRDS(post_fit, file = pathpostfit)
-      rm("post_fit")
-    }
-    gc()
+    print(x$cmp)
     
-    # PP ----------------------------------------------------------------------
-    if (!file.exists(pathpp)) {
-      print("PP")
-      pp <- pp_check_function(fit_input = fit, Nsample = 2000)
-      saveRDS(pp, file = pathpp)
-      rm("pp")
-    }
-    gc()
-    rm("fit")
-    rm("fml")
+    print("Fit")
+    fit <- bru(components = x$cmp, x$lik1, options = input_bru_options)
+    
+    print("Saving")
+    saveRDS(fit, pathfit)
   }
+  rm("fit")
   gc()
 }
 
+
+# GCPO ----------------------------------------------------------------------
+for (name in setname) {
+  pathfit <- paste0("hpv/clean_data/fit/fit_", name, ".RDS")
+  pathgcpo  <- paste0("hpv/clean_data/output/gcpo_", name, ".RDS")
+  print(pathfit)
+  print(pathgcpo)
+  if (!file.exists(pathgcpo)) {
+    print("Importing fit")
+    
+    W <- function_to_assign_W(name)
+    fit <- function_to_import_model_if_dont_exist(pathfit)
+    
+    
+    print("GCPO")
+    gcpo <- inla.group.cv(
+      fit,
+      group.cv = NULL,
+      num.level.sets = 32,
+      size.max = 32,
+      strategy = "posterior"
+    )
+    
+    saveRDS(gcpo, file = pathgcpo)
+    rm("gcpo")
+    rm("fit")
+    gc()
+  }
+}
+
+
+# States ----------------------------------------------------------------------
+for (name in setname) {
+  pathfit <- paste0("hpv/clean_data/fit/fit_", name, ".RDS")
+  pathstate <- paste0("hpv/clean_data/output/states_", name, ".RDS")
+  print(pathfit)
+  print(pathstate)
+  
+  W <- function_to_assign_W(name)
+  if (!file.exists(pathstate)) {
+    fit <- function_to_import_model_if_dont_exist(pathfit)
+    gc()
+    print("Evaluating state")
+    state <- inlabru::evaluate_state(
+      model = fit$bru_info$model,
+      result = fit,
+      property = 'sample',
+      n = 3000,
+      seed = 123
+    )
+    
+    saveRDS(state, pathstate)
+    rm("state")
+    rm("fit")
+    gc()
+  }
+}
+
+
+# Model selection ---------------------------------------------------------
 if (!file.exists("hpv/clean_data/output/gcpo.RDS")) {
   barrier <- readRDS("hpv/clean_data/output/gcpo_barrier.RDS")
   stationary <- readRDS("hpv/clean_data/output/gcpo_stationary.RDS")
@@ -838,7 +829,7 @@ if (!file.exists("hpv/clean_data/output/gcpo.RDS")) {
     ) %>%
     add_row(
       tibble(
-        model = "gcpo_bym2queensecondtorder.RDS",
+        model = "gcpo_bym2queensecondorder.RDS",
         ls = c(-mean(log(queen2$cv))),
         space = "bym2",
         type = "queensecondorder",
@@ -850,33 +841,23 @@ if (!file.exists("hpv/clean_data/output/gcpo.RDS")) {
   res <- readRDS("hpv/clean_data/output/gcpo.RDS")
 }
 
-# Model selection ---------------------------------------------------------
 #NB: WAIC: Smaller values are better, lower out of sample deviance.
 #NB: log-cpo is a positively oriented score, i.e. a large value is “good”.
 #logarithmic score = - 1/N sum_{i to N}log(gcpo_i)
 #We want to maximise 1/N sum_{i to N}log(gcpo_i) or minimise - 1/N sum_{i to N}log(gcpo_i)
-
-res <- res %>%
+optimal <- res %>%
   filter(ls == min(ls))
-path_fit_init <- paste0("hpv/clean_data/fit/", str_replace(res$model, "gcpo", "fit"))
-name <- str_remove(str_replace(res$model, "gcpo", "fit"), ".RDS")
+path_fit_optimal <- paste0("hpv/clean_data/fit/",
+                           str_replace(optimal$model, "gcpo", "fit"))
+name_optimal <- str_remove(str_replace(optimal$model, "gcpo", "fit"), ".RDS")
 
-print(res)
+print(optimal)
+print(name_optimal)
 
-if (str_detect(res$type, "delaunay")) {
-  W <- delaunay
-} else if (str_detect(res$type, "soi")) {
-  W <- soi
-} else if (str_detect(name, "queenfirstorder")) {
-  W <- queenfirstorder
-} else if (str_detect(name, "queensecondorder")) {
-  W <- queensecondorder
-}
-
-
-fml <- ~ tibble(
+# Model analysis -----------------------------------------------------------
+fmlpred <- ~ tibble(
   p = plogis(
-    intercept +
+    interceptglobal +
       intercepthpvother +
       interceptopportunistic +
       intercepthpvotheropportunistic +
@@ -889,14 +870,99 @@ fml <- ~ tibble(
   )
 )
 
-gc()
+rm("fit")
+
+pass_export <- F
+
+if (pass_export == F) {
+  for (row in seq(1, nrow(res))) {
+    m <- res %>% filter(row_number() == row)
+    print(m)
+    name <- str_remove(str_remove(m$model, "gcpo_"), ".RDS")
+    pathpostfit <- paste0("hpv/clean_data/output/post_fit_", name, ".RDS")
+    pathpp <- paste0("hpv/clean_data/output/pp_", name, ".RDS")
+    pathexpected <- paste0("hpv/clean_data/output/expected_", name, ".RDS")
+    pathfit <- paste0("hpv/clean_data/fit/",
+                      str_replace(m$model, "gcpo", "fit"))
+    pathstate <- paste0("hpv/clean_data/output/states_", name, ".RDS")
+    if (file.exists(pathstate)) {
+      W <- function_to_assign_W(name)
+      if (!file.exists(pathpostfit) |
+          (m$model == optimal$model &
+           (!file.exists(pathpp) | !file.exists(pathexpected)))) {
+        state <- readRDS(pathstate)
+      }
+      
+      
+      # Postfit -----------------------------------------------------------------
+      if (!file.exists(pathpostfit)) {
+        print("Postfit")
+        print(pathpostfit)
+        fit <- function_to_import_model_if_dont_exist(pathfit)
+        post_fit <- exporting_results_model(
+          fit_input = fit,
+          stateinput = state,
+          namemodel = name,
+          runmap = ifelse(m$model == optimal$model, T, F)
+        )
+        saveRDS(post_fit, file = pathpostfit)
+        rm("post_fit")
+        gc()
+      }
+      
+      if (m$model == optimal$model) {
+        # PP ----------------------------------------------------------------------
+        if (!file.exists(pathpp)) {
+          print("PP")
+          print(pathpp)
+          fit <- function_to_import_model_if_dont_exist(pathfit)
+          pp <- pp_check_function(
+            fit_input = fit,
+            stateinput = state,
+            type = "pp"
+          )
+          saveRDS(pp, file = pathpp)
+          rm("pp")
+          gc()
+        }
+        
+        # Expected----------------------------------------------------------------------
+        if (!file.exists(pathexpected)) {
+          print("Expected")
+          print(pathexpected)
+          fit <- function_to_import_model_if_dont_exist(pathfit)
+          pp <- pp_check_function(
+            fit_input = fit,
+            stateinput = state,
+            type = "expected"
+          )
+          saveRDS(pp, file = pathexpected)
+          rm("pp")
+          gc()
+        }
+      }
+      rm("fit")
+      rm("pathpostfit")
+      rm("pathpp")
+      rm("pathexpected")
+      rm("pathfit")
+      rm("pathstate")
+      gc()
+    }
+  }
+}
+
 
 # Sensitivitiy analyses: changing priors for correlation parameters -------
+gc()
+
 for (sensi in c("sensi1", "sensi2")) {
-  print(name)
+  print(optimal$type)
+  W <- function_to_assign_W(optimal$type)
   pathfit <- paste0("hpv/clean_data/fit/fit_", sensi, ".RDS")
   pathpostfit <- paste0("hpv/clean_data/output/post_fit_", sensi, ".RDS")
   pathpp <- paste0("hpv/clean_data/output/pp_", sensi, ".RDS")
+  pathstate <- paste0("hpv/clean_data/output/states_", sensi, ".RDS")
   print(pathfit)
   print(pathpostfit)
   print(pathpp)
@@ -908,8 +974,12 @@ for (sensi in c("sensi1", "sensi2")) {
     prec_corr_input <- case_when(sensi == "sensi1" ~ 0.4, sensi == "sensi2" ~ 0.8, TRUE ~ 0.2)
     print(prec_corr_input)
     #Importing baseline fit, used as starting values
-    fit <- readRDS(path_fit_init)
-    input_bru_options[["control.mode"]] <- list(theta = fit$mode$theta, x = fit$mode$x)
+    fit <- readRDS(path_fit_optimal)
+    input_bru_options[["control.mode"]] <- list(
+      theta = fit$mode$theta,
+      x = fit$mode$x,
+      restart = TRUE
+    )
     rm("fit")
     gc()
     
@@ -919,7 +989,7 @@ for (sensi in c("sensi1", "sensi2")) {
       sd_pc_input = 10,
       prec_corr = prec_corr_input,
       range.fraction.input = 0.1,
-      typespace =  paste0(res$space, "_", res$type)
+      typespace =  paste0(optimal$space, "_", optimal$type)
     )
     #Fit
     fit <- bru(components = x$cmp, x$lik1, options = input_bru_options)
@@ -929,26 +999,41 @@ for (sensi in c("sensi1", "sensi2")) {
     rm("fit")
   }
   gc()
-  if (!file.exists(pathpostfit) |
-      !file.exists(pathpp)) {
-    fit <- readRDS(pathfit)
+  
+  
+  
+  # States ------------------------------------------------------------------
+  if (!file.exists(pathstate)) {
+    print("Importing model")
+    fit <- function_to_import_model_if_dont_exist(pathfit)
+    
+    state <- evaluate_state(
+      model = fit$bru_info$model,
+      result = fit,
+      property = 'sample',
+      n = 3000,
+      seed = 123
+    )
+    saveRDS(state, pathstate)
+    rm("tible_pred")
+  } else{
+    state <- readRDS(pathstate)
   }
   gc()
-  
   
   # Postfit -----------------------------------------------------------------
   if (!file.exists(pathpostfit)) {
     print("Postfit")
+    fit <- readRDS(pathfit)
     post_fit <- exporting_results_model(
       fit_input = fit,
-      Nsample = 1500,
-      Name = 1500,
-      namemodel = res$space
+      stateinput = state,
+      namemodel = optimal$space,
+      runmap = F
     )
     saveRDS(post_fit, file = pathpostfit)
     rm("post_fit")
   }
+  rm("fit")
   gc()
 }
-rm("fit")
-gc()

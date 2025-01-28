@@ -1,6 +1,60 @@
+fun_format <- function(input) {
+  if ("testgroup" %in% colnames(input)) {
+    input <- input %>%
+      mutate(test = ifelse(testgroup == 1, "Organised", "Opportunistic"))
+  }
+  
+  if ("virusgroup" %in% colnames(input)) {
+    input <- input %>%
+      mutate(genotypes = ifelse(virusgroup == 1, "HPV16/18", "Other genotypes"))
+  }
+  
+  if ("virus" %in% colnames(input)) {
+    input <- input %>%
+      mutate(genotypes = ifelse(virus == "hpv1618", "HPV16/18", "Other genotypes"))
+  }
+  
+  if ("idyear" %in% colnames(input)) {
+    input <- input %>%
+      mutate(year = case_when(
+        idyear == 1 ~ 2020,
+        idyear == 2 ~ 2021,
+        idyear == 3 ~ 2022,
+        idyear == 4 ~ 2023,
+        TRUE ~ NA
+      ))
+  }
+  
+  
+  
+  input
+}
+
 # Function ----------------------------------------------------------------
+summary_function <- function(input, vector, type) {
+  if (type == "pp") {
+    tmp <- input %>%
+      mutate(val = ysim)
+  } else{
+    tmp <- input %>%
+      mutate(val = yexp)
+  }
+  tmp %>%
+    group_by(c(vector, "draws")) %>%
+    summarise(value = sum(val) / sum(N)) %>%
+    group_by(vector) %>%
+    summary_draw() %>%
+    tibble() %>%
+    left_join(dfbinomial  %>%
+                group_by(vector) %>%
+                summarise(obs = sum(result) / sum(N), N = sum(N)),
+              by = c(vector)) %>%
+    fun_format
+}
+
+
 # PP ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-pp_check_function <- function(fit_input, Nsample) {
+pp_check_function <- function(fit_input, stateinput, type = "pp") {
   dfbinomial <- dfbinomial %>%
     mutate(age_class = base::cut(
       age,
@@ -8,47 +62,33 @@ pp_check_function <- function(fit_input, Nsample) {
       include.lowest = TRUE,
       ordered_result = TRUE
     ))
+  
   # Posterior predictive ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  draw_pp <- generate(
-    object = fit_input,
-    newdata = dfbinomial,
-    n.samples = Nsample,
-    seed = 123,
-    formula = fml
+  print("Evaluate model")
+  draw_pp <- inlabru::evaluate_model(
+    model = fit_input$bru_info$model,
+    state = stateinput,
+    data = dfbinomial,
+    predictor = fmlpred
   )
   
   
-  
   library(tidytable)
-  
+  setDTthreads(10)
   df <- draw_pp  %>%
-    imap(~ .x  %>%
-           data.table() %>%
-           mutate(id = row_number(), draws = .y)) %>%
+    imap( ~ .x  %>%
+            data.table() %>%
+            mutate(id = row_number(), draws = .y)) %>%
     do.call(rbind, .)  %>%
     left_join(data.table(dfbinomial), by = "id") %>%
     rowwise() %>%
-    mutate(ysim = rbinom(n = 1, size = N, prob = p)) %>%
+    mutate(ysim = rbinom(n = 1, size = N, prob = p), yexp = p * N) %>%
     ungroup() %>%
     mutate(yobs = result) %>%
     ungroup()
   
   print(colnames(df))
   
-  summary_function <- function(vector) {
-    df %>%
-      group_by(c(vector, "draws")) %>%
-      summarise(value = sum(ysim) / sum(N)) %>%
-      group_by(vector) %>%
-      summary_draw() %>%
-      tibble() %>%
-      left_join(
-        dfbinomial  %>%
-          group_by(vector) %>%
-          summarise(obs = sum(result) / sum(N), N = sum(N)),
-        by = c(vector)
-      )
-  }
   
   out <- list()
   x <- c("virusgroup", "year", "age_class", "region_name", "type")
@@ -57,7 +97,7 @@ pp_check_function <- function(fit_input, Nsample) {
   for (i in 1:length(list_x)) {
     print(i)
     var <- list_x[[i]]
-    loop <- summary_function(var)
+    loop <- summary_function(df, var, type)
     print(loop)
     out[[i]] <- loop
     gc()
@@ -68,7 +108,7 @@ pp_check_function <- function(fit_input, Nsample) {
   return(out)
 }
 
-exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
+exporting_results_model <- function(fit_input, stateinput, namemodel, runmap = T) {
   summary.fixed <- fit_input$summary.fixed
   summary.random <- fit_input$summary.random
   summary.hyperpar <- fit_input$summary.hyperpar
@@ -165,26 +205,23 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
     ungroup
   
   
-  print(Name)
-  #Draws from joint
-  tmp <- generate(
-    object = fit_input,
-    newdata = datatmp,
-    n.samples = Name,
-    seed = 123,
-    formula = fml
+  #Evaluate from joint
+  print("Evaluate model")
+  tmp <- inlabru::evaluate_model(
+    model = fit_input$bru_info$model,
+    state = stateinput[seq(1, min(length(stateinput), 1550))],
+    data = datatmp,
+    predictor = fmlpred
   )
-  #  saveRDS(tmp, "hpv/clean_data/test.RDS")
-  print(nrow(tmp[[1]]))
-  print(colnames(tmp[[1]]))
   
   
   #Adding variables to draws
   #Computing expecting number
   library(tidytable)
+  setDTthreads(10)
   tmp_bis <- tmp %>%
-    imap(~ .x %>%
-           mutate(id_join = row_number(), draws = .y)) %>%
+    imap( ~ .x %>%
+            mutate(id_join = row_number(), draws = .y)) %>%
     do.call(rbind, .)  %>%
     left_join(datatmp %>% st_drop_geometry() %>% data.table, by = "id_join") %>%
     mutate(ENpos = p * N)
@@ -220,108 +257,106 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
     )
   
   print("Prevalence")
-  print("Total")
-  expected_prevalence <- data_for_expected_prevalence %>%
+  prevalence <- list()
+  prevalence[["expected_prevalence"]] <- data_for_expected_prevalence %>%
     group_by(draws, virus, test) %>%
     summarise(value = sum(value)) %>%
     mutate(value = value / nall$N) %>%
     group_by(virus, test) %>%
     summary_draw() %>%
-    tibble()
+    tibble() %>%
+    fun_format
   
-  print(expected_prevalence)
+  print(prevalence[["expected_prevalence"]])
   
   print("Year")
-  expected_prevalence_year <- data_for_expected_prevalence %>%
+  prevalence[["expected_prevalence_year"]] <- data_for_expected_prevalence %>%
     group_by(draws, virus, test, year) %>%
     summarise(value = sum(value)) %>%
     left_join(nyear, by = c('year')) %>%
     mutate(value = value / N) %>%
     group_by(virus, test, year) %>%
     summary_draw() %>%
-    tibble()
-  print(expected_prevalence_year)
+    tibble() %>%
+    fun_format
+  
+  print(prevalence[["expected_prevalence_year"]])
   
   print("Age")
-  expected_prevalence_age <- data_for_expected_prevalence %>%
+  prevalence[["expected_prevalence_age"]] <- data_for_expected_prevalence %>%
     group_by(draws, virus, test, age_class) %>%
     summarise(value = sum(value)) %>%
     left_join(nage, by = c('age_class')) %>%
     mutate(value = value / N) %>%
     group_by(virus, age_class) %>%
     summary_draw() %>%
-    tibble()
-  print(expected_prevalence_age)
+    tibble() %>%
+    fun_format
+  
+  print(prevalence[["expected_prevalence_age"]])
   
   
   print("Year-Age")
-  expected_prevalence_year_age <- data_for_expected_prevalence %>%
+  prevalence[["expected_prevalence_year_age"]] <- data_for_expected_prevalence %>%
     group_by(draws, virus, test, year, age_class) %>%
     summarise(value = sum(value)) %>%
     left_join(nageyear, by = c("year", "age_class")) %>%
     mutate(value = value / N) %>%
     group_by(virus, test, year, age_class) %>%
     summary_draw() %>%
-    tibble()
+    tibble() %>%
+    fun_format
   
-  print(expected_prevalence_year_age)
+  print(prevalence[["expected_prevalence_year_age"]])
   
   #AME-Rather marginal expected difference b/w opportunistic and organised
-  ame_test <- data_for_ame_test %>%
+  ame <- list()
+  ame[["ame_test"]] <- data_for_ame_test %>%
     group_by(draws, virus) %>%
     summarise(value = sum(value) / nall$N) %>%
     group_by(virus) %>%
     summary_draw() %>%
-    tibble()
-  print(ame_test)
+    tibble() %>%
+    fun_format
   
-  ame_test_year <- data_for_ame_test %>%
+  print(ame[["ame_test"]])
+  
+  ame[["ame_test_year"]] <- data_for_ame_test %>%
     group_by(draws, virus, year) %>%
     summarise(value = sum(value)) %>%
     left_join(nyear, by = c("year")) %>%
     group_by(virus, year) %>%
     mutate(value = value / N) %>%
     summary_draw() %>%
-    tibble()
-  print(ame_test_year)
+    tibble() %>%
+    fun_format
   
-  ame_test_age <- data_for_ame_test  %>%
+  print(ame[["ame_test_year"]])
+  
+  ame[["ame_test_age"]] <- data_for_ame_test  %>%
     group_by(draws, virus, age_class) %>%
     summarise(value = sum(value)) %>%
     left_join(nage, by = c("age_class")) %>%
     mutate(value = value / N) %>%
     group_by(virus, age_class) %>%
     summary_draw() %>%
-    tibble()
-  print(ame_test_age)
+    tibble() %>%
+    fun_format
   
-  ame_test_age_year <- data_for_ame_test  %>%
+  print(ame[["ame_test_age"]])
+  
+  ame[["ame_test_age_year"]] <- data_for_ame_test  %>%
     group_by(draws, virus, age_class, year) %>%
     summarise(value = sum(value)) %>%
     left_join(nageyear, by = c("year", "age_class")) %>%
     group_by(virus, age_class, year) %>%
     mutate(value = value / N) %>%
     summary_draw() %>%
-    tibble()
-  print(ame_test_age_year)
+    tibble() %>%
+    fun_format
   
-  ame_test_after2020 <- data_for_ame_test %>%
-    filter(year > 2020)  %>%
-    group_by(draws, virus) %>%
-    summarise(value = sum(value) / nall$N) %>%
-    group_by(virus) %>%
-    summary_draw() %>%
-    tibble()
-  print(ame_test_after2020)
+  print(ame[["ame_test_age_year"]])
   
-  ame_test_after2021 <- data_for_ame_test %>%
-    filter(year > 2021)  %>%
-    group_by(draws, virus) %>%
-    summarise(value = sum(value) / nall$N) %>%
-    group_by(virus) %>%
-    summary_draw() %>%
-    tibble()
-  print(ame_test_after2021)
   
   detach("package:tidytable", unload = TRUE)
   rm("tmp")
@@ -334,61 +369,54 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
   
   print("Risk level")
   ##Space -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  generate_risk_level <- function(df_input, age_input, idtime_input) {
-    x <- crossing(
+  generate_risk_level <- function(df_input,
+                                  age_input,
+                                  idtime_input,
+                                  city = F) {
+    datatmp <- crossing(
       df_input,
       expand.grid(age = age_input),
       expand.grid(idtime = idtime_input),
-      expand.grid(tibble(
-        hpv1618 = 1, hpvother = 0
-      )),
+      expand.grid(virusgroup = c(1, 2)),
       expand.grid(opportunistic = c(0, 1))
     ) %>%
       st_as_sf() %>%
       st_transform(crs(kmproj)) %>%
-      select(-one_of(c("id")))
-    
-    x <- rbind(x, x %>% mutate(hpv1618 = 0, hpvother = 1))
-    
-    #Adding lastly required covariates
-    datatmp <- x %>%
-      mutate(
-        intercept = 1,
-        testgroup = opportunistic + 1,
-        virusgroup = ifelse(hpv1618 == 1, 1, 2),
-        id = row_number()
-      )
-    
+      select(-one_of(c("id"))) %>%
+      mutate(intercept = 1,
+             testgroup = opportunistic + 1,
+             id = row_number())
+    table(datatmp$opportunistic, datatmp$testgroup)
+    table(datatmp$opportunistic, datatmp$testgroup)
+    #Should be 4
+    datatmp %>% st_drop_geometry %>% group_by(idgeometry) %>% count() %>% .$n %>% unique
     print(colnames(datatmp))
+    
     print(nrow(datatmp))
-    
-    state <- evaluate_state(
-      model = fit_input$bru_info$model,
-      result = fit_input,
-      data = datatmp,
-      property = 'sample',
-      n = Nsample,
-      seed = 123
-    )
-    
-    
+    print("Evaluate model")
     tmp <- inlabru::evaluate_model(
       model = fit_input$bru_info$model,
-      state = state,
+      state = stateinput,
       data = datatmp,
-      predictor =  fml
+      predictor =  fmlpred
     )
     
     
     library(tidytable)
+    setDTthreads(10)
     tmp_new <- tmp %>%
-      imap( ~ data.table(.x) %>%
-              mutate(id = row_number(), draws = .y) %>%
-              rename(value = p)) %>%
+      imap(~ data.table(.x) %>%
+             mutate(id = row_number(), draws = .y) %>%
+             rename(value = p)) %>%
       do.call(rbind, .) %>%
       left_join(datatmp %>% st_drop_geometry() %>% data.table(), by = "id")
     
+    print(colnames(tmp_new))
+    
+    ##Expected prevalence by post code
     virusspecific <- tmp_new %>%
+      st_drop_geometry() %>%
+      as_tidytable() %>%
       group_by(id) %>%
       summary_draw() %>%
       tibble()   %>%
@@ -397,13 +425,16 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
     
     print(virusspecific)
     
+    #Difference between virus within screening type
     difference_virus <- tmp_new %>%
-      select(-id, -hpv1618, -hpvother, -opportunistic) %>%
-      pivot_wider(names_from = virusgroup, values_from = value) %>%
-      rename(hpv1618 = `1`, hpvother = `2`) %>%
-      mutate(value = hpvother -  hpv1618) %>%
-      group_by(idgeometry, testgroup, age) %>%
+      as_tidytable() %>%
+      st_drop_geometry() %>%
+      group_by(idgeometry, age, idtime, testgroup, draws) %>%
+      arrange(virusgroup) %>%
+      mutate(value = value - value[1]) %>%
+      group_by(idgeometry, testgroup, virusgroup, age, idtime) %>%
       summary_draw() %>%
+      filter(virusgroup == 2) %>%
       tibble()   %>%
       left_join(df_input %>%
                   select(one_of(colnames(pixel_pred))), by = "idgeometry") %>%
@@ -411,29 +442,200 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
     
     print(difference_virus)
     
+    #Difference between test within virus
     difference_test <- tmp_new %>%
-      select(-id, -hpv1618, -hpvother, -opportunistic) %>%
-      pivot_wider(names_from = testgroup, values_from = value) %>%
-      rename(organised = `1`, opportunistic = `2`) %>%
-      mutate(value = opportunistic -  organised) %>%
-      group_by(idgeometry, virusgroup, age) %>%
+      st_drop_geometry() %>%
+      as_tidytable() %>%
+      group_by(idgeometry, age, idtime, virusgroup, draws) %>%
+      arrange(testgroup) %>%
+      mutate(value = value - value[1]) %>%
+      group_by(idgeometry, testgroup, virusgroup, age, idtime) %>%
       summary_draw() %>%
+      tibble()   %>%
+      filter(testgroup == 2) %>%
+      left_join(df_input %>%
+                  select(one_of(colnames(pixel_pred))), by = "idgeometry") %>%
+      st_as_sf()
+    print(difference_test)
+    
+    #Difference (between virus within screening type) between screening type
+    difference_virus_test <- tmp_new %>%
+      st_drop_geometry() %>%
+      as_tidytable() %>%
+      group_by(idgeometry, age, idtime, testgroup, draws) %>%
+      arrange(virusgroup) %>%
+      mutate(value = value - value[1]) %>%
+      group_by(idgeometry, age, idtime, virusgroup, draws) %>%
+      arrange(testgroup) %>%
+      mutate(value = value - value[1]) %>%
+      group_by(idgeometry, age, idtime, testgroup, virusgroup) %>%
+      summary_draw() %>%
+      filter(testgroup == 2 & virusgroup == 2) %>%
+      mutate(metric = "Difference in difference (between screening between genotypes within screening)") %>%
       tibble()   %>%
       left_join(df_input %>%
                   select(one_of(colnames(pixel_pred))), by = "idgeometry") %>%
       st_as_sf()
     
-    print(difference_test)
+    print(difference_virus_test)
+    
+    
+    
+    ###Count
+    count_difference_test <- tmp_new %>%
+      st_drop_geometry() %>%
+      as_tidytable() %>%
+      group_by(idgeometry, age, idtime, virusgroup, draws) %>%
+      arrange(testgroup) %>%
+      mutate(value = value - value[1]) %>%
+      mutate(value = ifelse(value > 0, 1, 0)) %>%
+      group_by(virusgroup, testgroup, age, idtime, draws) %>%
+      summarise(value = sum(value)) %>%
+      group_by(virusgroup, testgroup, age, idtime) %>%
+      summary_draw() %>%
+      filter(testgroup == 2) %>%
+      tibble()
+    
+    
+    print(count_difference_test)
+    
+    #Counting the number of district for which we found a greater expected prevalence for other genotypes than HPV16/18
+    #For each age and time and screening pathway
+    count_difference_virus <- tmp_new %>%
+      st_drop_geometry() %>%
+      as_tidytable() %>%
+      group_by(idgeometry, testgroup, age, idtime, draws) %>%
+      arrange(virusgroup) %>%
+      mutate(value = value -  value[1]) %>%
+      mutate(value = ifelse(value > 0, 1, 0)) %>%
+      group_by(virusgroup, testgroup, age, idtime, draws) %>%
+      summarise(value = sum(value)) %>%
+      group_by(virusgroup, testgroup, age, idtime) %>%
+      summary_draw() %>%
+      tibble() %>%
+      filter(virusgroup == 2)
+    
+    print(count_difference_virus)
+    
+    #Counting the number of district for which we found a greater expected prevalence for other genotypes than HPV16/18
+    #For each age and time
+    count_difference_virus_test <- tmp_new %>%
+      st_drop_geometry() %>%
+      as_tidytable() %>%
+      group_by(idgeometry, testgroup, age, idtime, draws) %>%
+      arrange(virusgroup) %>%
+      mutate(value = value -  value[1]) %>%
+      mutate(value = ifelse(value > 0, 1, 0)) %>%
+      group_by(testgroup, virusgroup, age, idtime, draws) %>%
+      summarise(value = sum(value)) %>%
+      filter(virusgroup == 2) %>%
+      ungroup() %>%
+      group_by(age, idtime, draws) %>%
+      arrange(testgroup) %>%
+      mutate(value = value -  value[1]) %>%
+      filter(testgroup == 2) %>%
+      group_by(age, idtime) %>%
+      summary_draw() %>%
+      tibble() %>%
+      mutate(var = "Difference in difference (between screening between genotypes within screening)")
+    
+    
+    print(count_difference_virus_test)
+    
     detach("package:tidytable", unload = TRUE)
     
+    
     out <- list(
-      "virusspecific" = virusspecific,
-      "difference_virus" = difference_virus,
-      "difference_test" = difference_test
+      "virusspecific" = virusspecific %>% fun_format,
+      "difference_virus" = difference_virus %>% fun_format,
+      "difference_test" = difference_test %>% fun_format,
+      "difference_virus_test" = difference_virus_test %>% fun_format,
+      "count_difference_test" = count_difference_test %>% fun_format,
+      "count_difference_virus" = count_difference_virus %>% fun_format,
+      "count_difference_virus_test" = count_difference_virus_test %>% fun_format
     )
+    
+    
+    if (city == T) {
+      print("Part special city")
+      #RD/RR/OR for age in main cities
+      summary_city_age_tmp <- tmp_new %>%
+        st_drop_geometry() %>%
+        group_by(draws, city, idspace, idtime, virusgroup, testgroup) %>%
+        arrange(age) %>%
+        mutate(
+          rd = value - value[1],
+          rr = value / value[1],
+          or = (value / (1 - value)) / (value[1] / (1 - value[1]))
+        ) %>%
+        ungroup()
+      
+      summary_city_age <- plyr::rbind.fill(
+        summary_city_age_tmp %>%
+          mutate(value = rd) %>%
+          group_by(city, idspace, idtime, virusgroup, testgroup, age) %>%
+          summary_draw() %>%
+          mutate(metric = "rd"),
+        summary_city_age_tmp %>%
+          mutate(value = rr) %>%
+          group_by(city, idspace, idtime, virusgroup, testgroup, age) %>%
+          summary_draw() %>%
+          mutate(metric = "rr"),
+        summary_city_age_tmp %>%
+          mutate(value = or) %>%
+          group_by(city, idspace, idtime, virusgroup, testgroup, age) %>%
+          summary_draw() %>%
+          mutate(metric = "or")
+      ) %>%
+        tibble()
+      
+      
+      #RD/RR/OR for time in main cities
+      summary_city_time_tmp <- tmp_new %>%
+        st_drop_geometry() %>%
+        group_by(draws, city, idspace, age, virusgroup, testgroup) %>%
+        arrange(idtime) %>%
+        mutate(
+          rd = value - value[1],
+          rr = value / value[1],
+          or = (value / (1 - value)) / (value[1] / (1 - value[1]))
+        ) %>%
+        ungroup()
+      
+      
+      summary_city_time <- plyr::rbind.fill(
+        summary_city_time_tmp %>%
+          mutate(value = rd) %>%
+          group_by(city, idspace, idtime, virusgroup, testgroup, age) %>%
+          summary_draw() %>%
+          mutate(metric = "rd"),
+        summary_city_time_tmp %>%
+          mutate(value = rr) %>%
+          group_by(city, idspace, idtime, virusgroup, testgroup, age) %>%
+          summary_draw() %>%
+          mutate(metric = "rr"),
+        summary_city_time_tmp %>%
+          mutate(value = or) %>%
+          group_by(city, idspace, idtime, virusgroup, testgroup, age) %>%
+          summary_draw() %>%
+          mutate(metric = "or")
+      ) %>%
+        tibble()
+      
+      
+      out[["summary_city_age"]] <- summary_city_age %>% fun_format
+      out[["summary_city_year"]] <- summary_city_time %>% fun_format
+    }
+    rm("tmp_new")
+    gc()
     return(out)
   }
+  
+  
+  
+  print("Restriction to French cities")
   print(namemodel)
+  
   if (str_detect(namemodel, "bym2")) {
     spatial_domain <- idcentroidspred
   }
@@ -443,218 +645,194 @@ exporting_results_model <- function(fit_input, Nsample, Name, namemodel) {
   }
   
   
-  print(colnames(spatial_domain))
-  
-  
-  baseline_space_30 <-   generate_risk_level(
-    df_input = spatial_domain,
-    age_input = 30,
-    idtime_input = c(max(dfdate$idtime))
-  )
-  gc()
-  baseline_space_paris_30 <- baseline_space_30 %>%
-    imap(~ .x %>% filter(insee_reg == 11))
-  gc()
-  
-  baseline_space_66 <-   generate_risk_level(
-    df_input = spatial_domain,
-    age_input = 66,
-    idtime_input = c(max(dfdate$idtime))
-  )
-  gc()
-  baseline_space_paris_66 <- baseline_space_66 %>%
-    imap(~ .x %>% filter(insee_reg == 11))
-  gc()
-  
-  
-  print("French city")
-  # Age/Time/sampling in major french city ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-  datatmp <- crossing(
-    centroid_major_city,
-    expand.grid(
-      age = seq(min(dfbinomial$age), max(dfbinomial$age)),
-      opportunistic = c(0, 1),
-      idtime = c(min(data_bru$idtime), max(dfdate$idtime)),
-      virusgroup = c(1, 2)
+  generate_diff_expected_prevalence_number_cp <- function(df_input, age_input, idtime_input) {
+    datatmp <- crossing(
+      df_input,
+      expand.grid(age = age_input),
+      expand.grid(idtime = idtime_input),
+      expand.grid(virusgroup = c(1, 2)),
+      expand.grid(opportunistic = c(0, 1))
+    ) %>%
+      st_as_sf() %>%
+      st_transform(crs(kmproj)) %>%
+      select(-one_of(c("id"))) %>%
+      mutate(intercept = 1,
+             testgroup = opportunistic + 1,
+             id = row_number())
+    
+    
+    print(colnames(datatmp))
+    print(nrow(datatmp))
+    
+    print("Evaluate model")
+    tmp <- inlabru::evaluate_model(
+      model = fit_input$bru_info$model,
+      state = stateinput,
+      data = datatmp,
+      predictor =  fmlpred
     )
-  ) %>%
-    st_as_sf() %>%
-    st_transform(crs(kmproj)) %>%
-    mutate(
-      intercept = 1,
-      testgroup = opportunistic + 1,
-      hpv1618 = ifelse(virusgroup == 1, 1, 0),
-      hpvother = 1 - hpv1618,
-      id = row_number()
+    
+    library(tidytable)
+    setDTthreads(10)
+    tmp_new <- tmp %>%
+      imap(~ data.table(.x) %>%
+             mutate(id = row_number(), draws = .y) %>%
+             rename(value = p)) %>%
+      do.call(rbind, .) %>%
+      left_join(datatmp %>%
+                  st_drop_geometry() %>%
+                  data.table(), by = "id")
+    
+    print(colnames(tmp_new))
+    
+    #Difference between screening pathway within virus
+    count_test <- tmp_new %>%
+      st_drop_geometry() %>%
+      as_tidytable() %>%
+      group_by(idgeometry, virusgroup, age, idtime, draws) %>%
+      arrange(testgroup) %>%
+      mutate(value = value - value[1]) %>%
+      mutate(value = ifelse(value > 0, 1, 0)) %>%
+      group_by(testgroup, virusgroup, age, idtime, draws) %>%
+      summarise(value = sum(value)) %>%
+      filter(testgroup == 2) %>%
+      group_by(virusgroup, idtime, draws) %>%
+      arrange(age) %>%
+      mutate(value = value - value[1]) %>%
+      filter(age > 30) %>%
+      group_by(virusgroup, age, idtime) %>%
+      summary_draw() %>%
+      tibble()
+    
+    print(count_test)
+    
+    #Difference between genotype within screening pathway
+    count_virus <- tmp_new %>%
+      st_drop_geometry() %>%
+      as_tidytable() %>%
+      group_by(idgeometry, testgroup, age, idtime, draws) %>%
+      arrange(virusgroup) %>%
+      mutate(value = value - value[1]) %>%
+      mutate(value = ifelse(value > 0, 1, 0)) %>%
+      group_by(testgroup, virusgroup, age, idtime, draws) %>%
+      summarise(value = sum(value)) %>%
+      filter(virusgroup == 2) %>%
+      group_by(testgroup, idtime, draws) %>%
+      arrange(age) %>%
+      mutate(value = value - value[1]) %>%
+      filter(age > 30) %>%
+      group_by(testgroup, age, idtime) %>%
+      summary_draw() %>%
+      tibble()
+    
+    print(count_virus)
+    
+    ###"Difference in difference"
+    diff_between_screenig_between_prev_within_screening <- tmp_new %>%
+      st_drop_geometry() %>%
+      as_tidytable() %>%
+      group_by(idgeometry, testgroup, age, idtime, draws) %>%
+      arrange(virusgroup) %>%
+      mutate(value = value - value[1]) %>%
+      mutate(value = ifelse(value > 0, 1, 0)) %>%
+      group_by(testgroup, virusgroup, age, idtime, draws) %>%
+      summarise(value = sum(value)) %>%
+      filter(virusgroup == 2) %>%
+      group_by(age, idtime, draws) %>%
+      arrange(testgroup) %>%
+      mutate(value = value -  value[1]) %>%
+      filter(testgroup == 2) %>%
+      group_by(idtime, draws) %>%
+      arrange(age) %>%
+      mutate(value = value - value[1]) %>%
+      group_by(age, idtime) %>%
+      summary_draw() %>%
+      tibble() %>%
+      filter(age > 30)
+    
+    
+    print(diff_between_screenig_between_prev_within_screening)
+    detach("package:tidytable", unload = TRUE)
+    
+    return(
+      list(
+        "diff_prev_between_screening" = count_test %>% fun_format,
+        "diff_prev_within_screening" = count_virus %>% fun_format,
+        "diff_between_screenig_between_prev_within_screening" = diff_between_screenig_between_prev_within_screening %>% fun_format
+      )
     )
+  }
   
-  #Generate predictions
-  effect_main_cities <- generate(
-    fit_input,
-    datatmp,
-    n.samples = Nsample,
-    probs = vector_quantiles,
-    seed = 123,
-    formula = fml
+  
+  list_main_city <- generate_risk_level(
+    df_input = centroid_major_city,
+    age_input = seq(min(dfbinomial$age), max(dfbinomial$age)),
+    idtime_input = c(min(data_bru$idtime), max(dfdate$idtime)),
+    city = T
   )
   
-  
-  library(tidytable)
-  
-  effect_main_cities <- effect_main_cities %>%
-    imap( ~ data.table(.x) %>%
-            mutate(id = row_number(), draws = .y)) %>%
-    do.call(rbind, .) %>%
-    left_join(data.table(datatmp %>% st_drop_geometry()), by = "id")
-  
-  
-  summary_city <- effect_main_cities %>%
-    rename(value = p) %>%
-    group_by(city, idspace, age, idtime, virusgroup, testgroup) %>%
-    summary_draw() %>%
-    tibble()
-  
-  
-  difference_virus_summary_city <- effect_main_cities %>%
-    select(-id, -hpv1618, -hpvother) %>%
-    rename(value = p) %>%
-    mutate(virusgroup = ifelse(virusgroup == 1, "hpv1618", "hpvother")) %>%
-    data.table() %>%
-    pivot_wider(names_from = virusgroup, values_from = value) %>%
-    mutate(value = hpvother - hpv1618) %>%
-    group_by(city, idspace, age, idtime, testgroup) %>%
-    summary_draw() %>%
-    tibble()
-  
-  
-  difference_virus_test_summary_city <- effect_main_cities %>%
-    select(-id, -hpv1618, -hpvother, -intercept, -opportunistic) %>%
-    rename(value = p) %>%
-    mutate(virusgroup = ifelse(virusgroup == 1, "hpv1618", "hpvother")) %>%
-    data.table() %>%
-    pivot_wider(names_from = virusgroup, values_from = value) %>%
-    mutate(value = hpvother - hpv1618) %>%
-    dplyr::select(-hpvother, -hpv1618) %>%
-    group_by(city, idspace, age, idtime, draws) %>%
-    arrange(testgroup) %>%
-    mutate(value = value - value[1]) %>%
-    filter(testgroup == 2) %>%
-    ungroup() %>%
-    group_by(city, idspace, age, idtime) %>%
-    summary_draw() %>%
-    mutate(label = "Difference between test (opportunistic-organised) of the difference between virus (other - 1618)") %>%
-    tibble
+  map <- list()
+  map_paris <- list()
+  change_inflation_age <- list()
+  if (runmap == T) {
+    print("Mapping")
+    
+    for (a in seq(30, 66)) {
+      print(a)
+      map[[a]] <-   generate_risk_level(
+        df_input = spatial_domain,
+        age_input = a,
+        idtime_input = c(max(dfdate$idtime))
+      )
+      
+      map_paris[[a]] <-  map[[a]] %>%
+        imap(function(.x, .y) {
+          if (!str_detect(.y, "count")) {
+            .x %>% filter(insee_reg == "11")
+          }
+          else{
+            NULL
+          }
+        })
+      
+      gc()
+    }
+    
+    print("Difference in count")
+    if (runmap == T) {
+      for (a in seq(31, 66)) {
+        print(a)
+        change_inflation_age[[a]] <- generate_diff_expected_prevalence_number_cp(
+          df_input = spatial_domain,
+          age_input = c(30, a),
+          idtime_input = c(max(dfdate$idtime))
+        )
+        gc()
+      }
+    }
+  }
   
   
-  difference_test_summary_city <- effect_main_cities %>%
-    select(-id, -hpv1618, -hpvother, -opportunistic) %>%
-    rename(value = p) %>%
-    mutate(testgroup = ifelse(testgroup == 1, "organised", "opportunistic")) %>%
-    data.table() %>%
-    pivot_wider(names_from = testgroup, values_from = value) %>%
-    mutate(value = opportunistic - organised) %>%
-    group_by(city, idspace, age, idtime, virusgroup) %>%
-    summary_draw() %>%
-    tibble()
-  
-  tmp <- effect_main_cities %>%
-    rename(value = p) %>%
-    arrange(age) %>%
-    group_by(draws, city, idspace, idtime, virusgroup, testgroup) %>%
-    mutate(value_ref = value[1]) %>%
-    ungroup()
-  
-  #Age
-  summary_city_age <- rbind(
-    tmp %>%
-      data.table() %>%
-      mutate(value = value - value_ref) %>%
-      group_by(city, idspace, age, idtime, virusgroup, testgroup) %>%
-      summary_draw() %>%
-      mutate(metric = "rd"),
-    tmp %>%
-      data.table() %>%
-      mutate(value = value / value_ref) %>%
-      group_by(city, idspace, age, idtime, virusgroup, testgroup) %>%
-      summary_draw() %>%
-      mutate(metric = "rr"),
-    tmp %>%
-      data.table() %>%
-      mutate(value = (value / (1 - value)) / (value_ref / (1 - value_ref))) %>%
-      group_by(city, idspace, age, idtime, virusgroup, testgroup) %>%
-      summary_draw() %>%
-      mutate(metric = "or")
-  ) %>%
-    tibble()
   
   
-  #Year
-  tmp <- effect_main_cities %>%
-    rename(value = p) %>%
-    filter(idtime %in% c(min(idtime), max(idtime))) %>%
-    arrange(idtime) %>%
-    group_by(draws, city, idspace, age, virusgroup, testgroup) %>%
-    mutate(value_ref = value[1]) %>%
-    ungroup()
   
-  summary_city_year <- rbind(
-    tmp %>%
-      mutate(value = value - value_ref) %>%
-      group_by(city, idspace, age, idtime, virusgroup, testgroup) %>%
-      summary_draw() %>%
-      mutate(metric = "rd"),
-    tmp %>%
-      mutate(value = value / value_ref) %>%
-      group_by(city, idspace, age, idtime, virusgroup, testgroup) %>%
-      summary_draw() %>%
-      mutate(metric = "rr"),
-    tmp %>%
-      mutate(value = (value / (1 - value)) / (value_ref / (1 - value_ref))) %>%
-      group_by(city, idspace, age, idtime, virusgroup, testgroup) %>%
-      summary_draw() %>%
-      mutate(metric = "or")
-  ) %>%
-    tibble()
-  rm("tmp")
-  rm("datatmp")
   gc()
-  detach("package:tidytable", unload = TRUE)
-  
-  rm("effect_main_cities")
-  
   
   # Out ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
   out <- list(
-    "expected_prevalence" = expected_prevalence,
-    "expected_prevalence_year" = expected_prevalence_year,
-    "expected_prevalence_age" = expected_prevalence_age,
-    "expected_prevalence_year_age" = expected_prevalence_year_age,
-    "ame_test" = ame_test,
-    "ame_test_year" = ame_test_year,
-    "ame_test_age" = ame_test_age,
-    "ame_test_age_year" = ame_test_age_year,
-    "ame_test_after2020" = ame_test_after2020,
-    "ame_test_after2021" = ame_test_after2021,
-    "summary_city" = summary_city,
-    "difference_virus_summary_city" = difference_virus_summary_city,
-    "difference_virus_test_summary_city" = difference_virus_test_summary_city,
-    "difference_test_summary_city" = difference_test_summary_city,
-    "summary_city_age" = summary_city_age,
-    "summary_city_year" = summary_city_year,
-    "baseline_space_30" = baseline_space_30,
-    "baseline_space_paris_30" = baseline_space_paris_30,
-    "baseline_space_66" = baseline_space_66,
-    "baseline_space_paris_66" = baseline_space_paris_66,
     "correlation" = correlation,
     "summary.fixed" = summary.fixed,
     "summary.random" = summary.random,
-    "summary.hyperpar" = summary.hyperpar
+    "summary.hyperpar" = summary.hyperpar,
+    "prevalence" = prevalence,
+    "ame" = ame,
+    "map" = map,
+    "map_paris" = map_paris,
+    "change_inflation_age" = change_inflation_age,
+    "list_main_city" = list_main_city
   )
   
-  
-  
   return(out)
-  
 }
 
 
@@ -684,7 +862,7 @@ summary_draw <- function(df) {
       qi_ub_05 = quantile(value, probs = 0.5, na.rm = T),
       min = min(value, na.rm = T),
       max = max(value, na.rm = T),
-      N = max(row_number()),
+      N_draws = max(row_number()),
       N_higher_0 = sum(value > 0, na.rm = T),
       N_higher_05 = sum(value > 0.5, na.rm = T),
       N_higher_1 = sum(value > 1, na.rm = T),
@@ -694,11 +872,11 @@ summary_draw <- function(df) {
     ) %>%
     ungroup() %>%
     mutate(
-      higher_0 = N_higher_0 / N,
-      higher_05 = N_higher_05 / N,
-      higher_1 = N_higher_1 / N,
-      lower_0 = N_lower_0 / N,
-      lower_05 = N_lower_05 / N,
-      lower_1 = N_lower_1 / N
+      higher_0 = N_higher_0 / N_draws,
+      higher_05 = N_higher_05 / N_draws,
+      higher_1 = N_higher_1 / N_draws,
+      lower_0 = N_lower_0 / N_draws,
+      lower_05 = N_lower_05 / N_draws,
+      lower_1 = N_lower_1 / N_draws
     )
 }
