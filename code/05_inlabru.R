@@ -666,9 +666,6 @@ setname <- c(
   "barrier"
 )
 
-setname <- c(
-  "bym2queenfirstorder"
-)
 
 
 # Running models ---------------------------------------------------
@@ -787,21 +784,19 @@ if (!file.exists("hpv/clean_data/output/gcpo.RDS")) {
   queen2 <- readRDS("hpv/clean_data/output/gcpo_bym2queensecondorder.RDS")
   
   res <- tibble(
-    model = "gcpo_barrier.RDS",
-    ls = c(-mean(log(barrier$cv))),
+    model = "gcpo_stationary.RDS",
+    ls = c(-mean(log(stationary$cv))),
     space = "grf",
-    type = "barrier",
+    type = "stationary",
     n = "Model 1"
   ) %>%
-    add_row(
-      tibble(
-        model = "gcpo_stationary.RDS",
-        ls = c(-mean(log(stationary$cv))),
-        space = "grf",
-        type = "stationary",
-        n = "Model 2"
-      )
-    ) %>%
+    add_row(tibble(
+      model = "gcpo_barrier.RDS",
+      ls = c(-mean(log(barrier$cv))),
+      space = "grf",
+      type = "barrier",
+      n = "Model 2"
+    )) %>%
     add_row(
       tibble(
         model = "gcpo_bym2delaunay.RDS",
@@ -875,7 +870,7 @@ rm("fit")
 pass_export <- F
 
 if (pass_export == F) {
-  for (row in seq(1, nrow(res))) {
+  for (row in 1:nrow(res)) {
     m <- res %>% filter(row_number() == row)
     print(m)
     name <- str_remove(str_remove(m$model, "gcpo_"), ".RDS")
@@ -916,11 +911,9 @@ if (pass_export == F) {
           print("PP")
           print(pathpp)
           fit <- function_to_import_model_if_dont_exist(pathfit)
-          pp <- pp_check_function(
-            fit_input = fit,
-            stateinput = state,
-            type = "pp"
-          )
+          pp <- pp_check_function(fit_input = fit,
+                                  stateinput = state,
+                                  type = "pp")
           saveRDS(pp, file = pathpp)
           rm("pp")
           gc()
@@ -931,11 +924,9 @@ if (pass_export == F) {
           print("Expected")
           print(pathexpected)
           fit <- function_to_import_model_if_dont_exist(pathfit)
-          pp <- pp_check_function(
-            fit_input = fit,
-            stateinput = state,
-            type = "expected"
-          )
+          pp <- pp_check_function(fit_input = fit,
+                                  stateinput = state,
+                                  type = "expected")
           saveRDS(pp, file = pathexpected)
           rm("pp")
           gc()
@@ -951,7 +942,6 @@ if (pass_export == F) {
     }
   }
 }
-
 
 # Sensitivitiy analyses: changing priors for correlation parameters -------
 gc()
