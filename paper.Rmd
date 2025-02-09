@@ -391,27 +391,27 @@ Competing models were discriminated through the log-score \cite{Gneiting2007}, w
 p1 <- ggpubr::ggarrange(
  descriptivefigures$descriptive_plot_sample + 
   scale_y_continuous(labels = function(x) ifelse(x < 0, "", scales::comma(x)), n.breaks = 10) +
-  theme_minimal(base_size = 21) +
+  theme_minimal(base_size = 20) +
   theme(legend.direction = "horizontal", legend.position = "bottom"),
  descriptivefigures$number_test_age +
-  theme_minimal(base_size = 21) +
+  theme_minimal(base_size = 20) +
   theme(legend.direction = "horizontal", legend.position = "bottom")+
   theme(axis.text.x = element_text(angle = +90, vjust = 0.5, hjust=1)),
  ncol = 2,
  labels = c("A) ", "B) "),
- font.label = list(size = 22, color = "black", face = "bold", family = NULL)
+ font.label = list(size = 20, color = "black", face = "bold", family = NULL)
 )
 p2 <- ggpubr::ggarrange(
  descriptivefigures$descriptive_plot_year +
-  theme_minimal(base_size = 21) +
+  theme_minimal(base_size = 20) +
   theme(legend.direction = "horizontal", legend.position = "bottom"),
  descriptivefigures$descriptive_plot_age +
-  theme_minimal(base_size = 21) +
+  theme_minimal(base_size = 20) +
   theme(legend.direction = "horizontal", legend.position = "bottom")+
   theme(axis.text.x = element_text(angle = +90, vjust = 0.5, hjust=1)),
  ncol = 2,
  labels = c("C) ", "D) "),
- font.label = list(size = 22, color = "black", face = "bold", family = NULL)
+ font.label = list(size = 20, color = "black", face = "bold", family = NULL)
 )
 
 
@@ -440,7 +440,7 @@ plot_year <- results$list_main_city$summary_city_year %>%
      caption = "Line: posterior average. Ribbon: posterior ETI95%. Scale of y axis for plots B and C: percentage points.") +
   scale_fill_manual(values = c("red", "blue")) +
   scale_color_manual(values = c("red", "blue")) +
-  theme_minimal(base_size = 21) +
+  theme_minimal(base_size = 20) +
   theme(legend.direction = "horizontal", legend.position = "bottom")+
   scale_y_continuous(labels = function(x)100*x)
 
@@ -463,7 +463,7 @@ plot_age <- results$list_main_city$summary_city_age %>%
      caption = "Line: posterior average. Ribbon: posterior ETI95%. Scale of y axis for plots A and B: percentage points.") +
   scale_fill_manual(values = c("red", "blue")) +
   scale_color_manual(values = c("red", "blue")) +
-  theme_minimal(base_size = 21) +
+  theme_minimal(base_size = 20) +
   theme(legend.direction = "horizontal", legend.position = "bottom")+
   scale_y_continuous(labels = function(x)100*x)
 
@@ -659,7 +659,7 @@ plot_summary_city <- results$list_main_city$virusspecific %>%
      fill = "Type of screening: ") +
   scale_fill_manual(values = c("red", "blue")) +
   scale_color_manual(values = c("red", "blue")) +
-  theme_minimal(base_size = 21) +
+  theme_minimal(base_size = 20) +
   theme(legend.direction = "horizontal", legend.position = "bottom") +
   scale_y_continuous(labels = scales::percent)
 
@@ -690,7 +690,7 @@ diff_between_virus_city <- results$list_main_city$difference_virus %>%
      caption = element_blank()) +
   scale_fill_manual(values = c("red", "blue", "darkgreen")) +
   scale_color_manual(values = c("red", "blue", "darkgreen")) +
-  theme_minimal(base_size = 21) +
+  theme_minimal(base_size = 20) +
   theme(legend.direction = "horizontal", legend.position = "bottom")+
   #geom_hline(yintercept = 0, linetype = "dashed") +
   scale_y_continuous(labels = function(x)100*x) +
@@ -713,13 +713,13 @@ diff_between_test_city <- results$list_main_city$difference_test %>%
           fill = genotypes), alpha = 0.25) +
   facet_grid(~city) +
   labs(x = "Age",
-     y = "Difference in expected prevalence \n between opportunistic and organised screening",
+     y = "Difference in expected prevalence \nbetween opportunistic and organised screening",
      color = "Genotype group: ",
      fill = "Genotype group: ",
      caption = element_blank()) +
   scale_fill_manual(values = c("darkgreen", "darkorange")) +
   scale_color_manual(values = c("darkgreen", "darkorange")) +
-  theme_minimal(base_size = 21) +
+  theme_minimal(base_size = 20) +
   theme(legend.direction = "horizontal", legend.position = "bottom")+
   geom_hline(yintercept = 0, linetype = "dashed") +
   scale_y_continuous(labels = function(x)paste0(100*x, "pp"))
@@ -733,7 +733,7 @@ ecdf_space <- results$map[[30]]$difference_test %>% st_drop_geometry()%>%
  labs(x = "Posterior probability of systematic inflation > 0", y = "Cumulated proportion",color = "Virus") + 
  geom_vline(xintercept = 0.95, linetype = "dashed")+
  geom_hline(yintercept = 0.5, linetype = "dashed")+
- theme_minimal(base_size = 21) +
+ theme_minimal(base_size = 20) +
  theme(legend.direction = "horizontal", legend.position = "bottom")
 
 
@@ -874,7 +874,7 @@ plot_number_cp <- change_number_cp %>%
     geom_line(aes(x = age, y = value,color = virusgroup, linetype = name)) +
     labs(color = "Genotype group: ",
          linetype = "Posterior: ")+ 
-    theme_minimal(base_size = 21)  +
+    theme_minimal(base_size = 20)  +
     scale_color_manual(values = c("darkgreen", "orange"))  + 
     scale_y_continuous(labels = scales::label_percent(), n.breaks = 8) +
   scale_linetype_manual(values = c(2,1, 3), labels = c("2.5% Quantile", "Average", "97.5% Quantile")) + 
@@ -901,7 +901,7 @@ diff_number_cp <- results$change_inflation_age %>%
     geom_line(aes(x = age, y = lower_0, color = factor(virusgroup))) +
     labs(color = "Genotype group: ",
          linetype = element_blank())+ 
-    theme_minimal(base_size = 21)  +
+    theme_minimal(base_size = 20)  +
     scale_color_manual(values = c("darkgreen", "orange"))  + 
     scale_y_continuous(labels = scales::label_percent(), n.breaks = 8) +
     scale_linetype_manual(values = c(2,1, 3), labels = c("2.5% Quantile", "Average", "97.5% Quantile")) + 
@@ -982,7 +982,7 @@ plot_expected_prevalence <- results$prevalence$expected_prevalence %>%
      y = "Expected prevalence in \n the analytic sample",
      caption = "Posterior average: dots, Posterior ETI95%: bars",
      color = "Assuming all tests collected through: ")+ 
-  theme_minimal(base_size = 21) +
+  theme_minimal(base_size = 20) +
   facet_grid(~virus)+
   theme(legend.direction = "horizontal", legend.position = "bottom")+
   scale_y_continuous(labels = scales::label_percent(), n.breaks = 8)+
@@ -1003,7 +1003,7 @@ plot_ame <- results$ame$ame_test %>%
      y = "Marginal difference in expected prevalence  of opportunistic screening",
      caption = "Posterior average: dots, Posterior ETI95%: bars",
      color = "Year: ")+ 
-  theme_minimal(base_size = 21) +
+  theme_minimal(base_size = 20) +
   facet_grid(~virus)+
   theme(legend.direction = "horizontal", legend.position = "bottom")+
   scale_y_continuous(labels = function(x)100*x)
@@ -1027,7 +1027,7 @@ plot_ameage <- results$ame$ame_test_age %>%
          y = "Marginal difference in expected prevalence  by age",
          caption = "Posterior average: dots, Posterior ETI95%: bars",
          color = "Year: ")+ 
-    theme_minimal(base_size = 21) +
+    theme_minimal(base_size = 20) +
     theme(legend.direction = "horizontal", legend.position = "bottom")+
     scale_color_manual(values = c("darkorange", "purple", "darkgreen", "brown", "black"))+
     geom_hline(yintercept = 0, color = 'red', linetype = "dashed") + 
@@ -1050,7 +1050,7 @@ plot_or_time <- results$list_main_city$summary_city_year %>%
      y = "Odds ratio of the expected \n prevalence  between the last \n and first week of the period",
      color = "Type of screening: ")+
   scale_color_manual(values = c("red", "blue")) +
-   theme_minimal(base_size = 21) +
+   theme_minimal(base_size = 20) +
    theme(legend.direction = "horizontal", legend.position = "bottom") 
 ```
 
@@ -1200,7 +1200,7 @@ ggpubr::ggarrange(
    theme(legend.position = "none")+
   labs(subtitle = "Metropolitan France"),
  labels = c("A) ", "B) "),
- font.label = list(size = 22, color = "black", face = "bold", family = NULL)
+ font.label = list(size = 20, color = "black", face = "bold", family = NULL)
  ),
 ggpubr::ggarrange(
 paris30_differencetest_hpv1618 +
@@ -1232,7 +1232,7 @@ france30_hpvother+
    theme(legend.position = "none")+
   labs(subtitle = "Metropolitan France"),
 labels = c("A) ", "B) "),
- font.label = list(size = 22, color = "black", face = "bold", family = NULL)),
+ font.label = list(size = 20, color = "black", face = "bold", family = NULL)),
 ggpubr::ggarrange(
 paris30_hpv1618+
   labs(subtitle = "Zoom on Paris region"),
@@ -1253,7 +1253,7 @@ plot_cp <- ggpubr::ggarrange(
     plot_number_cp,
     diff_number_cp,
   labels = c("C) ", "D) "),
- font.label = list(size = 22, color = "black", face = "bold", family = NULL),
+ font.label = list(size = 20, color = "black", face = "bold", family = NULL),
  ncol = 2)
 ```
 
@@ -1269,7 +1269,7 @@ ggpubr::ggarrange(
   diff_between_test_city,
   plot_cp,
   labels = c("A) ", "B) ", " "),
- font.label = list(size = 22, color = "black", face = "bold", family = NULL),
+ font.label = list(size = 20, color = "black", face = "bold", family = NULL),
   nrow = 3)
 
 ```
@@ -1285,14 +1285,14 @@ ggpubr::ggarrange(
    labs(caption = element_blank()),
   nrow = 1,
   labels = c("A) ", "B) "),
- font.label = list(size = 22, color = "black", face = "bold", family = NULL)),
+ font.label = list(size = 20, color = "black", face = "bold", family = NULL)),
   plot_ameage+
   labs(color = element_blank(), 
      fill = element_blank(),
      caption = "For all plots, dots represent the posterior average and bars the posterior ETI95%.")+
    theme(legend.position = "none"),
   labels =c(" ", "C) "),
- font.label = list(size = 22, color = "black", face = "bold", family = NULL),
+ font.label = list(size = 20, color = "black", face = "bold", family = NULL),
   nrow = 2,
   heights = c(1,2))
 ```
@@ -1311,14 +1311,18 @@ ggpubr::ggarrange(
 \hiddenchapter{Supplementary Files}
 \section*{Supplementary Files}
 
-This supplementary material is hosted by Eurosurveillance as supporting information alongside the article 'High-risk human papillomavirus cervical infection prevalence in France, 2020-2023: a nationwide, large-scale, and spatially resolved retrospective study comparing opportunistic and organised screening', on behalf of the authors, who remain responsible for the accuracy and appropriateness of the content. The same standards for ethics, copyright, attributions and permissions as for the article apply. Supplements are not edited by Eurosurveillance and the journal is not responsible for the maintenance of any links or email addresses provided therein.
 
 
-```{r eval=FALSE, include=FALSE}
-Supplementary Files for the article 'High-risk human papillomavirus cervical infection prevalence in France, 2020-2023: a nationwide, large-scale, and spatially resolved retrospective study comparing opportunistic and organised screening'.
+```{r}
+eurosurveillance <- 0
+if(eurosurveillance == 1){
+text_sup <- "This supplementary material is hosted by Eurosurveillance as supporting information alongside the article 'High-risk human papillomavirus cervical infection prevalence in France, 2020-2023: a nationwide, large-scale, and spatially resolved retrospective study comparing opportunistic and organised screening', on behalf of the authors, who remain responsible for the accuracy and appropriateness of the content. The same standards for ethics, copyright, attributions and permissions as for the article apply. Supplements are not edited by Eurosurveillance and the journal is not responsible for the maintenance of any links or email addresses provided therein."
+}else{
+text_sup <- "Supplementary Files for the article 'High-risk human papillomavirus cervical infection prevalence in France, 2020-2023: a nationwide, large-scale, and spatially resolved retrospective study comparing opportunistic and organised screening."}
 
 ```
 
+`r text_sup`
 
 \newpage
 
@@ -4055,7 +4059,7 @@ results$list_main_city$summary_city_year %>%
      color = "Type of screening: ",
      caption = "Dots show the posterior average and bars the posterior ETI95%.")+
   scale_color_manual(values = c("red", "blue")) +
-  theme_minimal(base_size = 21) +
+  theme_minimal(base_size = 20) +
   theme(legend.direction = "horizontal", legend.position = "bottom") +
   facet_grid(genotypes~city)
 
