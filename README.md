@@ -10,6 +10,7 @@ This repository contains the codes for the study 'High-risk human papillomavirus
 * 29/10/2024: reviewers invited
 * 08/11/2024: under review
 * 14/01/2025: reviews received, revised version due to 07/02/2025
+* 09/02/2025: revision submitted, preprint updated, .RMD uploaded on the github
 
 
 ## Typo correction
@@ -21,7 +22,7 @@ Several typos were identified after the document was released on MedRxiv. The ne
 * 19/11/2025: Additional neighbourhood matrix (2nd order Queen) considered. Replacement of the single-level prior of each of the three additional intercepts by a hierarchical prior (PC-prior). Results remain the same.
 * 01/12/2025: Fixing an issues with the reported ETI95 (before 01/12/2025 there were reported as $[q_{a},q_{1-a}]$ instead of the correct way, $[q_{a/2},q_{1-a/2}]$). Adding more draws from the joint posterior to compute the quantities (2,000 for PP and 1,500 for other quantities). Percentiles reported in supplementary files are now the 50th, 90th, 97.5th, and 99th quantiles (and the complement to 1 of these percentiles).
 * 21/12/2025: Run with the latest R-INLA version (24.12.11 version, see https://github.com/hrue/r-inla/blob/devel/rinla/NEWS.md) and update of the build used on the HPC (Rocky Linux-8.10 (Green Obsidian) instead of Centos 7 in previous versions).
-
+* 09/02/2025: Run with the 25.01.23 R-INLA version
 
 # Description of codes
 
