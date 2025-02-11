@@ -13,10 +13,6 @@ This repository contains the codes for the study 'High-risk human papillomavirus
 * 09/02/2025: revision submitted, preprint updated (https://www.medrxiv.org/content/10.1101/2024.10.20.24315479v2), .RMD uploaded on the github
 
 
-## Typo correction
-
-Several typos were identified after the document was released on MedRxiv. The next medrxiv update will be released following the first peer review round. In the meantime, a typo-corrected version can be found on my personal Google drive, following this url: https://drive.google.com/drive/folders/1on-osm5h_M3CVgz2mXA0YuDsN1kFgKJC?usp=drive_link
-
 ## Major updates
 
 * 19/11/2025: Additional neighbourhood matrix (2nd order Queen) considered. Replacement of the single-level prior of each of the three additional intercepts by a hierarchical prior (PC-prior). Results remain the same.
