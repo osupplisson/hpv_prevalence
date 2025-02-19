@@ -1314,7 +1314,7 @@ ggpubr::ggarrange(
 
 
 ```{r}
-eurosurveillance <- 0
+eurosurveillance <- 1
 if(eurosurveillance == 1){
 text_sup <- "This supplementary material is hosted by Eurosurveillance as supporting information alongside the article 'High-risk human papillomavirus cervical infection prevalence in France, 2020-2023: a nationwide, large-scale, and spatially resolved retrospective study comparing opportunistic and organised screening', on behalf of the authors, who remain responsible for the accuracy and appropriateness of the content. The same standards for ethics, copyright, attributions and permissions as for the article apply. Supplements are not edited by Eurosurveillance and the journal is not responsible for the maintenance of any links or email addresses provided therein."
 }else{
@@ -2085,8 +2085,6 @@ More details are provided in \cite{langbrezger,Rue2005} for further details.
 
 Model fit, computation of GCPO, and draws from the joint posterior were performed within the same R-session for models 1 and 2 and models 3 to 6. The Barrier model (Model 2) used results from the Stationary Matérn model (model 1) as starting values for the optimisation process. Similarly, models 3, 4, and 6 used the results from model 5 (BYM2 with Queen-contiguity structure) as starting values for the optimisation process. Once all fits, GCPOs, and draws were obtained, two new R sessions were launched. The first sessions performed the post-fit analyses for non-selected model, fitted the two additional sensitivity analyses, and run the post-analysis R-function on the sensitivity analyses. The second session run the post-analysis R-function on the selected model, which took almost one week to complete because of all the quantities to compute and the large number of draws considered.
 
-HPC logs are available on the Github webpage: \url{https://github.com/osupplisson/hpv_prevalence/tree/main/log_hpc}.
-
 \newpage
 
 
@@ -2138,7 +2136,7 @@ p_{s}=\frac{1}{1+\exp\left(-\mu_{s}\right)}\\
 \mathrm{Latent~field}
 \begin{cases}
 f_{\text{AGE}}(a_s,g_s)-2f_{\text{AGE}}(a_s+1,g_s) + f_{\text{AGE}}(a_s+2,g_s)\sim\mathcal{N}\left(0,\sigma^2\right)\\
-\mathrm{Corr}(f_{\text{AGE}}(a_s, 1),f_{\text{AGE}}(a_s', 2)) =\eta_{f_{\text{AGE}}}
+\mathrm{Corr}(f_{\text{AGE}}(a_s, 1),f_{\text{AGE}}(a_s, 2)) =\eta_{f_{\text{AGE}}}
 \end{cases}\\
 \mathrm{Hyperparameters}
 \begin{cases}
@@ -2152,7 +2150,7 @@ f_{\text{AGE}}(a_s,g_s)-2f_{\text{AGE}}(a_s+1,g_s) + f_{\text{AGE}}(a_s+2,g_s)\s
 \mathrm{Latent~field}
 \begin{cases}
 f_{\text{TIME}}(t_s,g_s)-2f_{\text{TIME}}(t_s+1,g_s) + f_{\text{TIME}}(t_s+2,g_s)\sim \mathcal{N}\left(0,\sigma^2\right)\\
-\mathrm{Corr}(f_{\text{TIME}}(t_s, 1),f_{\text{TIME}}(t_s', 2)) =\eta_{f_{\text{TIME}}}
+\mathrm{Corr}(f_{\text{TIME}}(t_s, 1),f_{\text{TIME}}(t_s, 2)) =\eta_{f_{\text{TIME}}}
 \end{cases}\\
 \mathrm{Hyperparameters}
 \begin{cases}
@@ -2240,8 +2238,13 @@ f_{\text{SPACE}}(z_s, g_s) \sim
 \mathrm{Latent~field}
 \begin{cases}
 f_{SPACE}(z_s,g_s) \sim 
-BYM2\left(\sigma,\phi,R\right)\\
-\mathrm{Corr}(f_{\text{SPACE}}(z_s, 1),f_{\text{SPACE}}(z_s, 2)) =\eta_{f_{\text{SPACE}}}
+BYM2\left(\sigma,\phi,R\right) \\
+\Leftrightarrow \begin{cases}
+f_{SPACE}(z_s,g_s) = \frac{1}{\sqrt{\tau_{f_{\text{SPACE}}}}}\left(\sqrt{1-\phi_{f_{\text{SPACE}}}}v(z_s,g_s)+\phi_{f_{\text{SPACE}}} u(z_s,g_s)\right)\\
+v(z_s,g_s) \sim \mathcal{N}\left(0,1\right) \\
+u(g_s) \sim \mathcal{N}\left(0,R_*^{-}\right) \\
+\end{cases}\\
+\mathrm{Corr}(u(z_s, 1),u(z_s, 2)) =\eta_{f_{\text{SPACE}}}
 \end{cases}\\
 \mathrm{Hyperparameters}
 \begin{cases}
@@ -2253,12 +2256,13 @@ BYM2\left(\sigma,\phi,R\right)\\
 \lambda_{\sigma_{f_{SPACE}}} = -\frac{-\log\left(p_{\sigma_{f_{SPACE}}}\right)}{\sigma_{0}},~\Pr\left(\sigma >\sigma_{0}\right)=p_{\sigma_{f_{SPACE}}}\\
 \left(\sigma_{0},p_{\sigma_{f_{SPACE}}}\right)=\left(10,0.01\right) \\
 \left(\phi_{0},p_{\phi_{f_{SPACE}}}\right)=\left(0.5,0.5\right) \\
-R: \begin{cases} 
+R :\begin{cases} 
 \text{Delaunay Triangulation (model 3)}\\
 \text{SOI subgraph of the Delaunay Triangulation (model 4)} \\
 \text{1st-order Queen contiguity (model 5)} \\ 
 \text{2nd-order Queen contiguity (model 6)} \\ 
-\end{cases}
+\end{cases}\\
+R_*:~\text{scaled counterpart of the matrix R}
 \end{cases}
 \end{cases}
 \end{cases}
