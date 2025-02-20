@@ -2042,7 +2042,7 @@ Let $\alpha = \left(\alpha_1, \cdots, \alpha_{S}\right)$ denotes a vector of par
 The variance-covariance matrix of $\alpha$ is given by $\mathrm{Var}(\alpha \vert \tau, \phi)=\tau^{-1}\left(\right(1-\phi\left)I+\phi R_*^{-}\right)$.
 
 
-For identifiability a sum-to-zero constraint is imposed on the components of the iCAR/BYM model associated with each connected subgraph of the matrix $R$ \cite{Riebler2016}.
+For identifiability a sum-to-zero constraint is imposed on the components of the scaled iCAR/BYM model associated with each connected subgraph of the matrix $R$ \cite{Riebler2016}.
 \item The BYM2 model, like other spatially-structure GMRF, relies on a neighbourhood matrix encoding the conditional dependencies between the data. 
 
 Two distance-based neighbourhood matrices were considered, using the centroid of each postcode. The first one of these distances was the Delaunay Triangulation approach, which is a geometric-based approach connecting areas into triangles such that the minimum angle of all triangles is maximised \cite{Su1997}. The second one consisted in the thinning of the Delaunay Triangulation structure through the sphere of influence approach. Starting from the Delaunay Triangulation neighbourhood structure, two areas area were linked to each other if their circles from the nearest neighbour, defined as the largest circle centred at the centroid of postcode $p$ that contains no other points than this centroid, overlap.
