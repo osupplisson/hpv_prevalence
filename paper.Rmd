@@ -2226,7 +2226,6 @@ f_{\text{SPACE}}(z_s, g_s) \sim
 \newpage
 
 
-
 \begin{equation*}
 \begin{cases}
 \mathrm{Parameters}
@@ -2237,14 +2236,9 @@ f_{\text{SPACE}}(z_s, g_s) \sim
 \mathrm{for}~f\in\{\alpha,\alpha'\},~(g_s,g_s')\in\{1,2\}^2,~\forall(z_s,z_s')\in \text{Set of postcodes}^2:\\
 \mathrm{Latent~field}
 \begin{cases}
-f_{SPACE}(z_s,g_s) \sim 
-BYM2\left(\sigma,\phi,R\right) \\
-\Leftrightarrow \begin{cases}
-f_{SPACE}(z_s,g_s) = \frac{1}{\sqrt{\tau_{f_{\text{SPACE}}}}}\left(\sqrt{1-\phi_{f_{\text{SPACE}}}}v(z_s,g_s)+\phi_{f_{\text{SPACE}}} u(z_s,g_s)\right)\\
-v(z_s,g_s) \sim \mathcal{N}\left(0,1\right) \\
-u(g_s) \sim \mathcal{N}\left(0,R_*^{-}\right) \\
-\end{cases}\\
-\mathrm{Corr}(u(z_s, 1),u(z_s, 2)) =\eta_{f_{\text{SPACE}}}
+f_{SPACE}(g_s) \sim 
+BYM2\left(\sigma_{\text{SPACE}},\phi_{\text{SPACE}},R\right) \\
+\mathrm{Corr}(f_{SPACE}(z_s, 1),f_{SPACE}(z_s, 2)) =\eta_{f_{\text{SPACE}}}
 \end{cases}\\
 \mathrm{Hyperparameters}
 \begin{cases}
@@ -2261,8 +2255,7 @@ R :\begin{cases}
 \text{SOI subgraph of the Delaunay Triangulation (model 4)} \\
 \text{1st-order Queen contiguity (model 5)} \\ 
 \text{2nd-order Queen contiguity (model 6)} \\ 
-\end{cases}\\
-R_*:~\text{scaled counterpart of the matrix R}
+\end{cases}
 \end{cases}
 \end{cases}
 \end{cases}
@@ -2282,6 +2275,11 @@ $$
 $$
 \end{itemize}
 
+
+```{r eval=FALSE, include=FALSE}
+#NB: for grouping structure for BYM2 model:
+https://mail.google.com/mail/u/0/#inbox/FMfcgzQZTMQQzvMCsRTqzlCgkTmSdSNz
+```
 
 
 ```{r mesh, dev = 'png'}
