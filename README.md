@@ -11,6 +11,7 @@ This repository contains the codes for the study 'High-risk human papillomavirus
 * 08/11/2024: under review
 * 14/01/2025: reviews received, revised version due to 07/02/2025
 * 09/02/2025: revision submitted, preprint updated (https://www.medrxiv.org/content/10.1101/2024.10.20.24315479v2), .RMD uploaded on the github page.
+* 26/02/2025: accepted for publication in Eurosurveillance
 
 
 ## Major updates
